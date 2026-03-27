@@ -218,6 +218,58 @@
     .sync-btn:hover { background: var(--accent); color: white; }
     .sync-btn.syncing svg { animation: spin 1s linear infinite; }
 
+    /* 同期進捗バー */
+    .sync-progress-bar {
+      height: 3px; background: var(--border);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .sync-progress-fill {
+      height: 100%; background: var(--accent);
+      width: 0%; transition: width 0.4s ease;
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* 同期ステータスパネル */
+    .sync-status-panel {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 36px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px; color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .sync-status-panel.hidden { display: none; }
+    .sync-count {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sync-count .cached { color: var(--success); font-weight: 500; }
+    .sync-count .total { color: var(--text-muted); }
+    .sync-detail {
+      margin-left: auto; font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* カードのキャッシュバッジ改善 */
+    .cache-badge {
+      margin-left: auto;
+      display: none; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--success);
+      background: #dcfce7; padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .cache-badge.downloading {
+      color: var(--accent); background: var(--accent-light);
+      display: flex;
+    }
+    .cache-badge.cached { display: flex; }
+    .cache-badge .dl-spinner {
+      width: 10px; height: 10px;
+      border: 1.5px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
     /* トースト */
     .toast {
       position: fixed; bottom: 32px; left: 50%;
@@ -264,6 +316,23 @@
         <span id="statusText">確認中…</span>
       </div>
     </div>
+  </div>
+
+  <!-- 同期進捗バー -->
+  <div class="sync-progress-bar">
+    <div class="sync-progress-fill" id="syncProgressFill"></div>
+  </div>
+
+  <!-- 同期ステータスパネル -->
+  <div class="sync-status-panel" id="syncStatusPanel">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+    </svg>
+    <span class="sync-count">
+      <span class="cached" id="cachedCount">0</span>
+      <span class="total" id="totalCount">/ 0 件をオフライン保存済み</span>
+    </span>
+    <span class="sync-detail" id="syncDetail">Wi-Fi接続時に自動更新</span>
   </div>
 
   <div class="category-tabs" id="categoryTabs">
@@ -319,6 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     allVideos = cached;
     renderVideos(allVideos);
     showScreen('listScreen');
+    await updateSyncStatus(allVideos);
   }
 
   // オンラインなら最新データを取得
@@ -350,11 +420,9 @@ async function syncVideos(silent = false) {
     renderVideos(allVideos);
     showScreen('listScreen');
 
-    // Service Workerに動画URLを渡してプリキャッシュ
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      const urls = allVideos.map(v => v.videoUrl).filter(Boolean);
-      navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_VIDEOS', urls });
-    }
+    // 同期状態を表示してからバックグラウンドでプリキャッシュ
+    await updateSyncStatus(allVideos);
+    precacheVideosWithProgress(allVideos); // awaitしない（バックグラウンド実行）
 
     if (!silent) showToast(`${allVideos.length}件の動画を更新しました`);
   } catch (e) {
@@ -406,9 +474,9 @@ function renderVideos(videos) {
       <div class="card-meta">
         ${v.layer ? `<span class="card-layer">${esc(v.layer)}</span>` : ''}
         <span>${esc(v.lang)}</span>
-        <span class="cache-badge" id="cb-${v.id}" style="display:none;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-          保存済
+        <span class="cache-badge" id="cb-${v.id}">
+          <span class="dl-spinner"></span>
+          <span id="cb-text-${v.id}">保存中…</span>
         </span>
       </div>
       <div class="card-play-btn">
@@ -455,13 +523,80 @@ function goBack() {
 function saveToCache(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch(e){} }
 function loadFromCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e){ return null; } }
 
+// 全動画のキャッシュ状態をチェックして表示を更新
+async function updateSyncStatus(videos) {
+  if (!('caches' in window)) return;
+  const cache = await caches.open('kiosk-videos-v1');
+  let cachedCount = 0;
+  const total = videos.filter(v => v.videoUrl).length;
+
+  for (const v of videos) {
+    if (!v.videoUrl) continue;
+    const match = await cache.match(v.videoUrl);
+    const badge = document.getElementById(`cb-${v.id}`);
+    if (badge) {
+      if (match) {
+        cachedCount++;
+        badge.className = 'cache-badge cached';
+        badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+      } else {
+        badge.className = 'cache-badge';
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  // 進捗バーと件数を更新
+  const pct = total > 0 ? Math.round(cachedCount / total * 100) : 0;
+  document.getElementById('syncProgressFill').style.width = pct + '%';
+  document.getElementById('cachedCount').textContent = cachedCount;
+  document.getElementById('totalCount').textContent = `/ ${total} 件をオフライン保存済み`;
+  document.getElementById('syncDetail').textContent =
+    cachedCount === total && total > 0 ? '✅ すべてオフライン再生可能' :
+    cachedCount > 0 ? `⬇️ ${total - cachedCount} 件をダウンロード中…` :
+    '⚠️ Wi-Fi接続時に自動保存されます';
+}
+
+// バックグラウンドで動画をプリキャッシュ（進捗をリアルタイム表示）
+async function precacheVideosWithProgress(videos) {
+  if (!('caches' in window) || !navigator.onLine) return;
+  const cache = await caches.open('kiosk-videos-v1');
+
+  for (const v of videos) {
+    if (!v.videoUrl) continue;
+    const existing = await cache.match(v.videoUrl);
+    if (existing) continue;
+
+    // ダウンロード中バッジを表示
+    const badge = document.getElementById(`cb-${v.id}`);
+    if (badge) {
+      badge.className = 'cache-badge downloading';
+      badge.style.display = 'flex';
+      badge.innerHTML = `<span class="dl-spinner"></span> ダウンロード中…`;
+    }
+
+    try {
+      const response = await fetch(v.videoUrl);
+      if (response.ok && response.status === 200) {
+        await cache.put(v.videoUrl, response);
+      }
+    } catch(e) {
+      console.log('Precache failed:', v.title, e);
+    }
+
+    // 状態を更新
+    await updateSyncStatus(videos);
+  }
+}
+
 async function checkCache(id, url) {
   if (!url || !('caches' in window)) return;
   const cache = await caches.open('kiosk-videos-v1');
   const match = await cache.match(url);
-  if (match) {
-    const el = document.getElementById(`cb-${id}`);
-    if (el) el.style.display = 'flex';
+  const badge = document.getElementById(`cb-${id}`);
+  if (match && badge) {
+    badge.className = 'cache-badge cached';
+    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
   }
 }
 

@@ -49,40 +49,28 @@
     .header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 12px 20px;
+      padding: 20px 36px;
       display: flex; align-items: center; justify-content: space-between;
       flex-shrink: 0;
       box-shadow: 0 2px 12px rgba(26,95,168,0.06);
-      gap: 8px;
     }
-    .header-logo { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .header-logo { display: flex; align-items: center; gap: 14px; }
     .header-icon {
-      width: 38px; height: 38px; flex-shrink: 0;
-      background: var(--accent); border-radius: 10px;
+      width: 44px; height: 44px;
+      background: var(--accent); border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
     }
-    .header-icon svg { width: 22px; height: 22px; fill: white; }
+    .header-icon svg { width: 26px; height: 26px; fill: white; }
     .header-title {
       font-family: 'Noto Serif JP', serif;
-      font-size: 16px; font-weight: 600; color: var(--accent-dark); line-height: 1.2;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: 20px; font-weight: 600; color: var(--accent-dark); line-height: 1.2;
     }
-    .header-subtitle { display: none; }
-    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .header-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-    .header-status span { display: none; }
+    .header-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
     .status-dot.online { background: var(--success); box-shadow: 0 0 6px rgba(46,139,87,0.5); }
     .status-dot.offline { background: #e8a020; }
-    @media (min-width: 600px) {
-      .header { padding: 16px 36px; gap: 16px; }
-      .header-icon { width: 44px; height: 44px; border-radius: 12px; }
-      .header-icon svg { width: 26px; height: 26px; }
-      .header-title { font-size: 20px; }
-      .header-subtitle { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-      .header-right { gap: 16px; }
-      .header-status span { display: inline; }
-    }
 
     /* カテゴリタブ */
     .category-tabs {
@@ -114,11 +102,11 @@
 
     .video-card {
       background: var(--surface); border-radius: var(--radius);
-      border: 1.5px solid var(--border); padding: 20px 18px 16px;
+      border: 1.5px solid var(--border); padding: 24px 22px 20px;
       cursor: pointer; transition: all 0.25s ease;
       box-shadow: var(--shadow);
-      display: flex; flex-direction: column; gap: 10px;
-      position: relative; overflow: visible;
+      display: flex; flex-direction: column; gap: 12px;
+      position: relative; overflow: hidden;
     }
     .video-card::before {
       content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
@@ -222,102 +210,13 @@
     .sync-btn {
       display: flex; align-items: center; gap: 6px;
       background: var(--accent-light); border: 1.5px solid var(--accent);
-      border-radius: 10px; padding: 8px 10px;
+      border-radius: 10px; padding: 8px 16px;
       color: var(--accent); font-size: 13px; font-weight: 500;
       cursor: pointer; transition: all 0.2s;
       font-family: 'Noto Sans JP', sans-serif;
-      white-space: nowrap;
     }
-    .sync-btn span.btn-label { display: none; }
     .sync-btn:hover { background: var(--accent); color: white; }
     .sync-btn.syncing svg { animation: spin 1s linear infinite; }
-    @media (min-width: 600px) {
-      .sync-btn { padding: 8px 16px; }
-      .sync-btn span.btn-label { display: inline; }
-    }
-
-
-    /* 一括ダウンロードボタン */
-    .download-btn {
-      display: flex; align-items: center; gap: 6px;
-      background: #dcfce7; border: 1.5px solid var(--success);
-      border-radius: 10px; padding: 8px 10px;
-      color: var(--success); font-size: 13px; font-weight: 500;
-      cursor: pointer; transition: all 0.2s;
-      font-family: 'Noto Sans JP', sans-serif;
-      white-space: nowrap;
-    }
-    .download-btn .dl-btn-label { display: none; }
-    .download-btn:hover { background: var(--success); color: white; }
-    .download-btn.downloading {
-      background: var(--accent-light); border-color: var(--accent);
-      color: var(--accent); cursor: not-allowed;
-    }
-    .download-btn.done {
-      background: #dcfce7; border-color: var(--success); color: var(--success);
-      cursor: default;
-    }
-    .download-btn .btn-spinner {
-      width: 12px; height: 12px;
-      border: 1.5px solid var(--accent);
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: none;
-    }
-    .download-btn.downloading .btn-spinner { display: block; }
-    @media (min-width: 600px) {
-      .download-btn { padding: 8px 16px; }
-      .download-btn .dl-btn-label { display: inline; }
-    }
-
-    /* ダウンロード進捗パネル */
-    .download-progress-panel {
-      display: none;
-      align-items: center; gap: 12px;
-      padding: 10px 36px;
-      background: var(--accent-light);
-      border-bottom: 1px solid var(--accent);
-      font-size: 13px; color: var(--accent);
-      flex-shrink: 0;
-    }
-    .download-progress-panel.active { display: flex; }
-    .download-progress-bar-wrap {
-      flex: 1; height: 6px; background: rgba(26,95,168,0.15);
-      border-radius: 3px; overflow: hidden;
-    }
-    .download-progress-bar-inner {
-      height: 100%; background: var(--accent);
-      border-radius: 3px; width: 0%;
-      transition: width 0.4s ease;
-    }
-    .download-progress-text { font-size: 12px; white-space: nowrap; }
-
-
-
-
-
-
-    /* カードのキャッシュバッジ改善 */
-    .cache-badge {
-      margin-left: auto;
-      display: none; align-items: center; gap: 4px;
-      font-size: 11px; color: var(--success);
-      background: #dcfce7; padding: 3px 8px;
-      border-radius: 6px;
-    }
-    .cache-badge.downloading {
-      color: var(--accent); background: var(--accent-light);
-      display: flex;
-    }
-    .cache-badge.cached { display: flex; }
-    .cache-badge .dl-spinner {
-      width: 10px; height: 10px;
-      border: 1.5px solid var(--accent);
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
 
     /* トースト */
     .toast {
@@ -354,18 +253,11 @@
       </div>
     </div>
     <div class="header-right">
-      <button class="download-btn" id="downloadBtn" onclick="startBulkDownload()">
-        <span class="btn-spinner"></span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="downloadIcon">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-        </svg>
-        <span id="downloadBtnText" class="dl-btn-label">一括保存</span>
-      </button>
       <button class="sync-btn" id="syncBtn" onclick="syncVideos()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
         </svg>
-        <span class="btn-label">更新</span>
+        更新
       </button>
       <div class="header-status">
         <div class="status-dot" id="statusDot"></div>
@@ -373,21 +265,6 @@
       </div>
     </div>
   </div>
-
-
-
-  <!-- ダウンロード進捗パネル -->
-  <div class="download-progress-panel" id="downloadProgressPanel">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-    </svg>
-    <div class="download-progress-bar-wrap">
-      <div class="download-progress-bar-inner" id="dlProgressBar"></div>
-    </div>
-    <div class="download-progress-text" id="dlProgressText">準備中…</div>
-  </div>
-
-
 
   <div class="category-tabs" id="categoryTabs">
     <button class="tab-btn active" data-cat="all" onclick="filterCategory('all', this)">すべて</button>
@@ -442,7 +319,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     allVideos = cached;
     renderVideos(allVideos);
     showScreen('listScreen');
-    await updateSyncStatus(allVideos);
   }
 
   // オンラインなら最新データを取得
@@ -474,9 +350,11 @@ async function syncVideos(silent = false) {
     renderVideos(allVideos);
     showScreen('listScreen');
 
-    // 同期状態を表示してからバックグラウンドでプリキャッシュ
-    await updateSyncStatus(allVideos);
-    precacheVideosWithProgress(allVideos); // awaitしない（バックグラウンド実行）
+    // Service Workerに動画URLを渡してプリキャッシュ
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const urls = allVideos.map(v => v.videoUrl).filter(Boolean);
+      navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_VIDEOS', urls });
+    }
 
     if (!silent) showToast(`${allVideos.length}件の動画を更新しました`);
   } catch (e) {
@@ -528,7 +406,10 @@ function renderVideos(videos) {
       <div class="card-meta">
         ${v.layer ? `<span class="card-layer">${esc(v.layer)}</span>` : ''}
         <span>${esc(v.lang)}</span>
-        <span class="cache-badge" id="cb-${v.id}" style="display:none;"></span>
+        <span class="cache-badge" id="cb-${v.id}" style="display:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          保存済
+        </span>
       </div>
       <div class="card-play-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -556,21 +437,12 @@ function playVideo(id, title, url, category, layer) {
   const player = document.getElementById('videoPlayer');
   const overlay = document.getElementById('videoLoading');
   player.src = url;
-  player.preload = 'auto';
   overlay.classList.remove('hidden');
   player.oncanplay = () => overlay.classList.add('hidden');
   player.onerror = () => { overlay.classList.add('hidden'); showToast('動画の読み込みに失敗しました'); };
 
   showScreen('playerScreen');
   player.play().catch(() => {});
-
-  // 再生済バッジを表示
-  const badge = document.getElementById(`cb-${id}`);
-  if (badge) {
-    badge.style.display = 'flex';
-    badge.className = 'cache-badge cached';
-    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 再生済`;
-  }
 }
 
 function goBack() {
@@ -583,49 +455,13 @@ function goBack() {
 function saveToCache(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch(e){} }
 function loadFromCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e){ return null; } }
 
-// 全動画のキャッシュ状態をチェックして表示を更新
-async function updateSyncStatus(videos) {
-  if (!('caches' in window)) return;
-  const cache = await caches.open('kiosk-videos-v1');
-  let cachedCount = 0;
-  const total = videos.filter(v => v.videoUrl).length;
-
-  for (const v of videos) {
-    if (!v.videoUrl) continue;
-    const match = await cache.match(v.videoUrl);
-    const badge = document.getElementById(`cb-${v.id}`);
-    if (badge) {
-      if (match) {
-        cachedCount++;
-        badge.className = 'cache-badge cached';
-        badge.style.display = 'flex';
-        badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
-      } else {
-        badge.className = 'cache-badge';
-        badge.style.display = 'none';
-      }
-    }
-  }
-
-  // 同期状態パネルは一括保存ボタンに統合済み
-}
-
-// バックグラウンドで動画をプリキャッシュ（ブラウザキャッシュ委譲）
-async function precacheVideosWithProgress(videos) {
-  // 動画のキャッシュはブラウザに委譲
-  // 一度再生した動画はブラウザキャッシュに残る
-  await updateSyncStatus(videos);
-}
-
-
 async function checkCache(id, url) {
   if (!url || !('caches' in window)) return;
   const cache = await caches.open('kiosk-videos-v1');
   const match = await cache.match(url);
-  const badge = document.getElementById(`cb-${id}`);
-  if (match && badge) {
-    badge.className = 'cache-badge cached';
-    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+  if (match) {
+    const el = document.getElementById(`cb-${id}`);
+    if (el) el.style.display = 'flex';
   }
 }
 
@@ -660,94 +496,6 @@ function catClass(c) {
   if (c.includes('デバイス')) return 'cat-device';
   if (c.includes('術後') || c.includes('生活')) return 'cat-lifestyle';
   return 'cat-other';
-}
-
-
-// ========== 一括ダウンロード ==========
-let isDownloading = false;
-
-async function startBulkDownload() {
-  if (isDownloading) return;
-  if (!navigator.onLine) { showToast('Wi-Fiに接続してから実行してください'); return; }
-  if (allVideos.length === 0) { showToast('動画がありません'); return; }
-
-  const videos = allVideos.filter(v => v.videoUrl);
-  if (videos.length === 0) return;
-
-  isDownloading = true;
-  const btn = document.getElementById('downloadBtn');
-  const panel = document.getElementById('downloadProgressPanel');
-  const bar = document.getElementById('dlProgressBar');
-  const text = document.getElementById('dlProgressText');
-  const btnText = document.getElementById('downloadBtnText');
-
-  btn.className = 'download-btn downloading';
-  btnText.textContent = '保存中…';
-  panel.classList.add('active');
-
-  // 非表示の動画要素でバックグラウンド再生してキャッシュ
-  const hiddenVideo = document.createElement('video');
-  hiddenVideo.muted = true;
-  hiddenVideo.preload = 'auto';
-  hiddenVideo.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
-  document.body.appendChild(hiddenVideo);
-
-  let completed = 0;
-
-  for (const v of videos) {
-    text.textContent = `${v.title}（${completed + 1}/${videos.length}）`;
-    bar.style.width = (completed / videos.length * 100) + '%';
-
-    // カードのバッジをダウンロード中に更新
-    const badge = document.getElementById(`cb-${v.id}`);
-    if (badge) {
-      badge.style.display = 'flex';
-      badge.className = 'cache-badge downloading';
-      badge.innerHTML = `<span class="dl-spinner"></span> 保存中…`;
-    }
-
-    await new Promise((resolve) => {
-      hiddenVideo.src = v.videoUrl;
-      hiddenVideo.preload = 'auto';
-
-      let resolved = false;
-      const done = () => {
-        if (!resolved) {
-          resolved = true;
-          // バッジを保存済みに更新
-          if (badge) {
-            badge.className = 'cache-badge cached';
-            badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
-          }
-          resolve();
-        }
-      };
-
-      // 十分バッファされたら次へ（全部待つと時間がかかりすぎるので一定量でOK）
-      hiddenVideo.oncanplaythrough = done;
-      // タイムアウト：30秒待っても次へ
-      setTimeout(done, 30000);
-      hiddenVideo.load();
-    });
-
-    completed++;
-  }
-
-  hiddenVideo.remove();
-  bar.style.width = '100%';
-  text.textContent = `✅ ${completed}件すべて保存完了！`;
-
-  btn.className = 'download-btn done';
-  btnText.textContent = '保存済み ✅';
-
-  // 3秒後にパネルを閉じる
-  setTimeout(() => {
-    panel.classList.remove('active');
-    isDownloading = false;
-  }, 3000);
-
-  await updateSyncStatus(allVideos);
-  showToast(`${completed}件の動画を保存しました`);
 }
 
 function esc(s) {

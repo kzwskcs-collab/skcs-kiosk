@@ -74,7 +74,7 @@
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
     .status-dot.online { background: var(--success); box-shadow: 0 0 6px rgba(46,139,87,0.5); }
     .status-dot.offline { background: #e8a020; }
-    @media (min-width: 768px) {
+    @media (min-width: 600px) {
       .header { padding: 16px 36px; gap: 16px; }
       .header-icon { width: 44px; height: 44px; border-radius: 12px; }
       .header-icon svg { width: 26px; height: 26px; }
@@ -114,11 +114,11 @@
 
     .video-card {
       background: var(--surface); border-radius: var(--radius);
-      border: 1.5px solid var(--border); padding: 24px 22px 20px;
+      border: 1.5px solid var(--border); padding: 20px 18px 16px;
       cursor: pointer; transition: all 0.25s ease;
       box-shadow: var(--shadow);
-      display: flex; flex-direction: column; gap: 12px;
-      position: relative; overflow: hidden;
+      display: flex; flex-direction: column; gap: 10px;
+      position: relative; overflow: visible;
     }
     .video-card::before {
       content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
@@ -231,7 +231,7 @@
     .sync-btn span.btn-label { display: none; }
     .sync-btn:hover { background: var(--accent); color: white; }
     .sync-btn.syncing svg { animation: spin 1s linear infinite; }
-    @media (min-width: 768px) {
+    @media (min-width: 600px) {
       .sync-btn { padding: 8px 16px; }
       .sync-btn span.btn-label { display: inline; }
     }
@@ -266,7 +266,7 @@
       display: none;
     }
     .download-btn.downloading .btn-spinner { display: block; }
-    @media (min-width: 768px) {
+    @media (min-width: 600px) {
       .download-btn { padding: 8px 16px; }
       .download-btn .dl-btn-label { display: inline; }
     }
@@ -294,36 +294,9 @@
     .download-progress-text { font-size: 12px; white-space: nowrap; }
 
 
-    /* 同期進捗バー */
-    .sync-progress-bar {
-      height: 3px; background: var(--border);
-      flex-shrink: 0; overflow: hidden;
-    }
-    .sync-progress-fill {
-      height: 100%; background: var(--accent);
-      width: 0%; transition: width 0.4s ease;
-      border-radius: 0 2px 2px 0;
-    }
 
-    /* 同期ステータスパネル */
-    .sync-status-panel {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 36px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      font-size: 13px; color: var(--text-muted);
-      flex-shrink: 0;
-    }
-    .sync-status-panel.hidden { display: none; }
-    .sync-count {
-      display: flex; align-items: center; gap: 6px;
-    }
-    .sync-count .cached { color: var(--success); font-weight: 500; }
-    .sync-count .total { color: var(--text-muted); }
-    .sync-detail {
-      margin-left: auto; font-size: 12px;
-      color: var(--text-muted);
-    }
+
+
 
     /* カードのキャッシュバッジ改善 */
     .cache-badge {
@@ -401,10 +374,7 @@
     </div>
   </div>
 
-  <!-- 同期進捗バー -->
-  <div class="sync-progress-bar">
-    <div class="sync-progress-fill" id="syncProgressFill"></div>
-  </div>
+
 
   <!-- ダウンロード進捗パネル -->
   <div class="download-progress-panel" id="downloadProgressPanel">
@@ -417,17 +387,7 @@
     <div class="download-progress-text" id="dlProgressText">準備中…</div>
   </div>
 
-  <!-- 同期ステータスパネル -->
-  <div class="sync-status-panel" id="syncStatusPanel">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-    </svg>
-    <span class="sync-count">
-      <span class="cached" id="cachedCount">0</span>
-      <span class="total" id="totalCount">/ 0 件をオフライン保存済み</span>
-    </span>
-    <span class="sync-detail" id="syncDetail">Wi-Fi接続時に自動更新</span>
-  </div>
+
 
   <div class="category-tabs" id="categoryTabs">
     <button class="tab-btn active" data-cat="all" onclick="filterCategory('all', this)">すべて</button>
@@ -647,15 +607,7 @@ async function updateSyncStatus(videos) {
     }
   }
 
-  // 進捗バーと件数を更新
-  const pct = total > 0 ? Math.round(cachedCount / total * 100) : 0;
-  document.getElementById('syncProgressFill').style.width = pct + '%';
-  document.getElementById('cachedCount').textContent = cachedCount;
-  document.getElementById('totalCount').textContent = `/ ${total} 件をオフライン保存済み`;
-  document.getElementById('syncDetail').textContent =
-    cachedCount === total && total > 0 ? '✅ すべてオフライン再生可能' :
-    cachedCount > 0 ? `⬇️ ${total - cachedCount} 件をダウンロード中…` :
-    '⚠️ Wi-Fi接続時に自動保存されます';
+  // 同期状態パネルは一括保存ボタンに統合済み
 }
 
 // バックグラウンドで動画をプリキャッシュ（ブラウザキャッシュ委譲）

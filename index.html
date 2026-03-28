@@ -555,7 +555,7 @@ async function updateSyncStatus(videos) {
     '⚠️ Wi-Fi接続時に自動保存されます';
 }
 
-// バックグラウンドで動画をプリキャッシュ（進捗をリアルタイム表示）
+// バックグラウンドで動画をプリキャッシュ（Blob方式・Range Request対応）
 async function precacheVideosWithProgress(videos) {
   if (!('caches' in window) || !navigator.onLine) return;
   const cache = await caches.open('kiosk-videos-v1');
@@ -572,6 +572,32 @@ async function precacheVideosWithProgress(videos) {
       badge.className = 'cache-badge downloading';
       badge.innerHTML = `<span class="dl-spinner"></span> ダウンロード中…`;
     }
+
+    try {
+      // XHRでBlobとしてDL → Responseに変換してキャッシュ
+      const blob = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', v.videoUrl, true);
+        xhr.responseType = 'blob';
+        xhr.onload = () => xhr.status === 200 ? resolve(xhr.response) : reject(xhr.status);
+        xhr.onerror = reject;
+        xhr.send();
+      });
+      const response = new Response(blob, {
+        status: 200,
+        headers: { 'Content-Type': 'video/mp4', 'Content-Length': String(blob.size) }
+      });
+      await cache.put(v.videoUrl, response);
+      console.log('Cached:', v.title);
+    } catch(e) {
+      console.log('Precache failed:', v.title, e);
+      if (badge) badge.style.display = 'none';
+    }
+
+    // 状態を更新
+    await updateSyncStatus(videos);
+  }
+}
 
     try {
       const response = await fetch(v.videoUrl);

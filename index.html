@@ -502,12 +502,21 @@ function playVideo(id, title, url, category, layer) {
   const player = document.getElementById('videoPlayer');
   const overlay = document.getElementById('videoLoading');
   player.src = url;
+  player.preload = 'auto';
   overlay.classList.remove('hidden');
   player.oncanplay = () => overlay.classList.add('hidden');
   player.onerror = () => { overlay.classList.add('hidden'); showToast('動画の読み込みに失敗しました'); };
 
   showScreen('playerScreen');
   player.play().catch(() => {});
+
+  // 再生済バッジを表示
+  const badge = document.getElementById(`cb-${id}`);
+  if (badge) {
+    badge.style.display = 'flex';
+    badge.className = 'cache-badge cached';
+    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 再生済`;
+  }
 }
 
 function goBack() {
@@ -555,48 +564,11 @@ async function updateSyncStatus(videos) {
     '⚠️ Wi-Fi接続時に自動保存されます';
 }
 
-// バックグラウンドで動画をプリキャッシュ（Blob方式・Range Request対応）
+// バックグラウンドで動画をプリキャッシュ（ブラウザキャッシュ委譲）
 async function precacheVideosWithProgress(videos) {
-  if (!('caches' in window) || !navigator.onLine) return;
-  const cache = await caches.open('kiosk-videos-v1');
-
-  for (const v of videos) {
-    if (!v.videoUrl) continue;
-    const existing = await cache.match(v.videoUrl);
-    if (existing) continue;
-
-    // ダウンロード中バッジを表示
-    const badge = document.getElementById(`cb-${v.id}`);
-    if (badge) {
-      badge.style.display = 'flex';
-      badge.className = 'cache-badge downloading';
-      badge.innerHTML = `<span class="dl-spinner"></span> ダウンロード中…`;
-    }
-
-    try {
-      // XHRでBlobとしてDL → Responseに変換してキャッシュ
-      const blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', v.videoUrl, true);
-        xhr.responseType = 'blob';
-        xhr.onload = () => xhr.status === 200 ? resolve(xhr.response) : reject(xhr.status);
-        xhr.onerror = reject;
-        xhr.send();
-      });
-      const response = new Response(blob, {
-        status: 200,
-        headers: { 'Content-Type': 'video/mp4', 'Content-Length': String(blob.size) }
-      });
-      await cache.put(v.videoUrl, response);
-      console.log('Cached:', v.title);
-    } catch(e) {
-      console.log('Precache failed:', v.title, e);
-      if (badge) badge.style.display = 'none';
-    }
-
-    // 状態を更新
-    await updateSyncStatus(videos);
-  }
+  // 動画のキャッシュはブラウザに委譲
+  // 一度再生した動画はブラウザキャッシュに残る
+  await updateSyncStatus(videos);
 }
 
     try {

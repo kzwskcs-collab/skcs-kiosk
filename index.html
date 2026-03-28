@@ -665,19 +665,6 @@ async function precacheVideosWithProgress(videos) {
   await updateSyncStatus(videos);
 }
 
-    try {
-      const response = await fetch(v.videoUrl);
-      if (response.ok && response.status === 200) {
-        await cache.put(v.videoUrl, response);
-      }
-    } catch(e) {
-      console.log('Precache failed:', v.title, e);
-    }
-
-    // 状態を更新
-    await updateSyncStatus(videos);
-  }
-}
 
 async function checkCache(id, url) {
   if (!url || !('caches' in window)) return;

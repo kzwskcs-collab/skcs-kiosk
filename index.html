@@ -49,28 +49,40 @@
     .header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 20px 36px;
+      padding: 12px 20px;
       display: flex; align-items: center; justify-content: space-between;
       flex-shrink: 0;
       box-shadow: 0 2px 12px rgba(26,95,168,0.06);
+      gap: 8px;
     }
-    .header-logo { display: flex; align-items: center; gap: 14px; }
+    .header-logo { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
     .header-icon {
-      width: 44px; height: 44px;
-      background: var(--accent); border-radius: 12px;
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: var(--accent); border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
     }
-    .header-icon svg { width: 26px; height: 26px; fill: white; }
+    .header-icon svg { width: 22px; height: 22px; fill: white; }
     .header-title {
       font-family: 'Noto Serif JP', serif;
-      font-size: 20px; font-weight: 600; color: var(--accent-dark); line-height: 1.2;
+      font-size: 16px; font-weight: 600; color: var(--accent-dark); line-height: 1.2;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .header-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .header-right { display: flex; align-items: center; gap: 16px; }
-    .header-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .header-subtitle { display: none; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .header-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .header-status span { display: none; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
     .status-dot.online { background: var(--success); box-shadow: 0 0 6px rgba(46,139,87,0.5); }
     .status-dot.offline { background: #e8a020; }
+    @media (min-width: 768px) {
+      .header { padding: 16px 36px; gap: 16px; }
+      .header-icon { width: 44px; height: 44px; border-radius: 12px; }
+      .header-icon svg { width: 26px; height: 26px; }
+      .header-title { font-size: 20px; }
+      .header-subtitle { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+      .header-right { gap: 16px; }
+      .header-status span { display: inline; }
+    }
 
     /* カテゴリタブ */
     .category-tabs {
@@ -210,13 +222,77 @@
     .sync-btn {
       display: flex; align-items: center; gap: 6px;
       background: var(--accent-light); border: 1.5px solid var(--accent);
-      border-radius: 10px; padding: 8px 16px;
+      border-radius: 10px; padding: 8px 10px;
       color: var(--accent); font-size: 13px; font-weight: 500;
       cursor: pointer; transition: all 0.2s;
       font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
     }
+    .sync-btn span.btn-label { display: none; }
     .sync-btn:hover { background: var(--accent); color: white; }
     .sync-btn.syncing svg { animation: spin 1s linear infinite; }
+    @media (min-width: 768px) {
+      .sync-btn { padding: 8px 16px; }
+      .sync-btn span.btn-label { display: inline; }
+    }
+
+
+    /* 一括ダウンロードボタン */
+    .download-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: #dcfce7; border: 1.5px solid var(--success);
+      border-radius: 10px; padding: 8px 10px;
+      color: var(--success); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+    .download-btn .dl-btn-label { display: none; }
+    .download-btn:hover { background: var(--success); color: white; }
+    .download-btn.downloading {
+      background: var(--accent-light); border-color: var(--accent);
+      color: var(--accent); cursor: not-allowed;
+    }
+    .download-btn.done {
+      background: #dcfce7; border-color: var(--success); color: var(--success);
+      cursor: default;
+    }
+    .download-btn .btn-spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    .download-btn.downloading .btn-spinner { display: block; }
+    @media (min-width: 768px) {
+      .download-btn { padding: 8px 16px; }
+      .download-btn .dl-btn-label { display: inline; }
+    }
+
+    /* ダウンロード進捗パネル */
+    .download-progress-panel {
+      display: none;
+      align-items: center; gap: 12px;
+      padding: 10px 36px;
+      background: var(--accent-light);
+      border-bottom: 1px solid var(--accent);
+      font-size: 13px; color: var(--accent);
+      flex-shrink: 0;
+    }
+    .download-progress-panel.active { display: flex; }
+    .download-progress-bar-wrap {
+      flex: 1; height: 6px; background: rgba(26,95,168,0.15);
+      border-radius: 3px; overflow: hidden;
+    }
+    .download-progress-bar-inner {
+      height: 100%; background: var(--accent);
+      border-radius: 3px; width: 0%;
+      transition: width 0.4s ease;
+    }
+    .download-progress-text { font-size: 12px; white-space: nowrap; }
+
 
     /* 同期進捗バー */
     .sync-progress-bar {
@@ -270,51 +346,6 @@
       animation: spin 0.8s linear infinite;
     }
 
-
-    /* スクリーンセーバーオーバーレイ */
-    .screensaver-overlay {
-      position: fixed; inset: 0; z-index: 100;
-      background: rgba(0,0,0,0.92);
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 20px;
-    }
-    .screensaver-overlay.active { display: flex; }
-    .screensaver-video {
-      width: 100%; height: 100%;
-      position: absolute; inset: 0;
-      object-fit: contain;
-    }
-    .screensaver-info {
-      position: absolute; bottom: 32px; left: 0; right: 0;
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
-    }
-    .screensaver-title {
-      font-family: 'Noto Serif JP', serif;
-      font-size: 20px; font-weight: 600; color: white;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    }
-    .screensaver-progress {
-      display: flex; gap: 6px;
-    }
-    .screensaver-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: rgba(255,255,255,0.3);
-      transition: background 0.3s;
-    }
-    .screensaver-dot.active { background: white; }
-    .screensaver-tap-hint {
-      font-size: 13px; color: rgba(255,255,255,0.5);
-      animation: pulse 2s ease-in-out infinite;
-    }
-    .screensaver-cache-info {
-      font-size: 12px; color: rgba(255,255,255,0.4);
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
-    }
-
     /* トースト */
     .toast {
       position: fixed; bottom: 32px; left: 50%;
@@ -350,11 +381,18 @@
       </div>
     </div>
     <div class="header-right">
+      <button class="download-btn" id="downloadBtn" onclick="startBulkDownload()">
+        <span class="btn-spinner"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="downloadIcon">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span id="downloadBtnText" class="dl-btn-label">一括保存</span>
+      </button>
       <button class="sync-btn" id="syncBtn" onclick="syncVideos()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
         </svg>
-        更新
+        <span class="btn-label">更新</span>
       </button>
       <div class="header-status">
         <div class="status-dot" id="statusDot"></div>
@@ -366,6 +404,17 @@
   <!-- 同期進捗バー -->
   <div class="sync-progress-bar">
     <div class="sync-progress-fill" id="syncProgressFill"></div>
+  </div>
+
+  <!-- ダウンロード進捗パネル -->
+  <div class="download-progress-panel" id="downloadProgressPanel">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+    </svg>
+    <div class="download-progress-bar-wrap">
+      <div class="download-progress-bar-inner" id="dlProgressBar"></div>
+    </div>
+    <div class="download-progress-text" id="dlProgressText">準備中…</div>
   </div>
 
   <!-- 同期ステータスパネル -->
@@ -410,18 +459,6 @@
   </div>
 </div>
 
-
-<!-- スクリーンセーバーオーバーレイ（自動キャッシュ用） -->
-<div class="screensaver-overlay" id="screensaverOverlay" onclick="exitScreensaver()">
-  <video class="screensaver-video" id="screensaverVideo" muted playsinline preload="auto"></video>
-  <div class="screensaver-info">
-    <div class="screensaver-title" id="screensaverTitle"></div>
-    <div class="screensaver-progress" id="screensaverProgress"></div>
-    <div class="screensaver-tap-hint">タップして動画を選択</div>
-    <div class="screensaver-cache-info" id="screensaverCacheInfo"></div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -447,9 +484,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     showScreen('listScreen');
     await updateSyncStatus(allVideos);
   }
-
-  // スクリーンセーバータイマー開始（動画ロード後）
-  setTimeout(resetScreensaverTimer, 5000);
 
   // オンラインなら最新データを取得
   if (navigator.onLine) {
@@ -690,83 +724,92 @@ function catClass(c) {
 }
 
 
-// ========== スクリーンセーバー（自動キャッシュ） ==========
-let screensaverTimer = null;
-let screensaverIndex = 0;
-let isScreensaverActive = false;
-const SCREENSAVER_DELAY = 3 * 60 * 1000; // 3分間操作なしで起動
+// ========== 一括ダウンロード ==========
+let isDownloading = false;
 
-function resetScreensaverTimer() {
-  if (screensaverTimer) clearTimeout(screensaverTimer);
-  if (allVideos.length > 0 && !isScreensaverActive) {
-    screensaverTimer = setTimeout(startScreensaver, SCREENSAVER_DELAY);
-  }
-}
+async function startBulkDownload() {
+  if (isDownloading) return;
+  if (!navigator.onLine) { showToast('Wi-Fiに接続してから実行してください'); return; }
+  if (allVideos.length === 0) { showToast('動画がありません'); return; }
 
-function startScreensaver() {
-  if (allVideos.length === 0) return;
-  isScreensaverActive = true;
-  screensaverIndex = 0;
-  document.getElementById('screensaverOverlay').classList.add('active');
-
-  // 進捗ドット生成
-  const dots = document.getElementById('screensaverProgress');
-  dots.innerHTML = allVideos.map((_, i) =>
-    `<div class="screensaver-dot${i === 0 ? ' active' : ''}" id="ss-dot-${i}"></div>`
-  ).join('');
-
-  playScreensaverVideo(0);
-}
-
-function playScreensaverVideo(index) {
   const videos = allVideos.filter(v => v.videoUrl);
   if (videos.length === 0) return;
 
-  const v = videos[index % videos.length];
-  const ssVideo = document.getElementById('screensaverVideo');
-  const ssTitle = document.getElementById('screensaverTitle');
-  const ssCacheInfo = document.getElementById('screensaverCacheInfo');
+  isDownloading = true;
+  const btn = document.getElementById('downloadBtn');
+  const panel = document.getElementById('downloadProgressPanel');
+  const bar = document.getElementById('dlProgressBar');
+  const text = document.getElementById('dlProgressText');
+  const btnText = document.getElementById('downloadBtnText');
 
-  ssVideo.src = v.videoUrl;
-  ssVideo.preload = 'auto';
-  ssTitle.textContent = v.title;
+  btn.className = 'download-btn downloading';
+  btnText.textContent = '保存中…';
+  panel.classList.add('active');
 
-  // ドット更新
-  document.querySelectorAll('.screensaver-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === index % videos.length);
-  });
+  // 非表示の動画要素でバックグラウンド再生してキャッシュ
+  const hiddenVideo = document.createElement('video');
+  hiddenVideo.muted = true;
+  hiddenVideo.preload = 'auto';
+  hiddenVideo.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+  document.body.appendChild(hiddenVideo);
 
-  ssVideo.onended = () => {
-    screensaverIndex++;
-    playScreensaverVideo(screensaverIndex % videos.length);
-  };
+  let completed = 0;
 
-  ssVideo.oncanplay = async () => {
-    // キャッシュ状態確認
-    if ('caches' in window) {
-      const cache = await caches.open('kiosk-videos-v1');
-      const cached = await cache.match(v.videoUrl);
-      ssCacheInfo.textContent = cached ? '✅ キャッシュ済み' : '⬇️ キャッシュ中…';
+  for (const v of videos) {
+    text.textContent = `${v.title}（${completed + 1}/${videos.length}）`;
+    bar.style.width = (completed / videos.length * 100) + '%';
+
+    // カードのバッジをダウンロード中に更新
+    const badge = document.getElementById(`cb-${v.id}`);
+    if (badge) {
+      badge.style.display = 'flex';
+      badge.className = 'cache-badge downloading';
+      badge.innerHTML = `<span class="dl-spinner"></span> 保存中…`;
     }
-    ssVideo.play().catch(() => {});
-  };
-}
 
-function exitScreensaver() {
-  isScreensaverActive = false;
-  const ssVideo = document.getElementById('screensaverVideo');
-  ssVideo.pause();
-  ssVideo.src = '';
-  document.getElementById('screensaverOverlay').classList.remove('active');
-  resetScreensaverTimer();
-}
+    await new Promise((resolve) => {
+      hiddenVideo.src = v.videoUrl;
+      hiddenVideo.preload = 'auto';
 
-// ユーザー操作でタイマーをリセット
-['click', 'touchstart', 'keydown'].forEach(evt => {
-  document.addEventListener(evt, () => {
-    if (!isScreensaverActive) resetScreensaverTimer();
-  }, { passive: true });
-});
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          // バッジを保存済みに更新
+          if (badge) {
+            badge.className = 'cache-badge cached';
+            badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+          }
+          resolve();
+        }
+      };
+
+      // 十分バッファされたら次へ（全部待つと時間がかかりすぎるので一定量でOK）
+      hiddenVideo.oncanplaythrough = done;
+      // タイムアウト：30秒待っても次へ
+      setTimeout(done, 30000);
+      hiddenVideo.load();
+    });
+
+    completed++;
+  }
+
+  hiddenVideo.remove();
+  bar.style.width = '100%';
+  text.textContent = `✅ ${completed}件すべて保存完了！`;
+
+  btn.className = 'download-btn done';
+  btnText.textContent = '保存済み ✅';
+
+  // 3秒後にパネルを閉じる
+  setTimeout(() => {
+    panel.classList.remove('active');
+    isDownloading = false;
+  }, 3000);
+
+  await updateSyncStatus(allVideos);
+  showToast(`${completed}件の動画を保存しました`);
+}
 
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g, m =>

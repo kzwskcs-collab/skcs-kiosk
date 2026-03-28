@@ -474,10 +474,7 @@ function renderVideos(videos) {
       <div class="card-meta">
         ${v.layer ? `<span class="card-layer">${esc(v.layer)}</span>` : ''}
         <span>${esc(v.lang)}</span>
-        <span class="cache-badge" id="cb-${v.id}">
-          <span class="dl-spinner"></span>
-          <span id="cb-text-${v.id}">保存中…</span>
-        </span>
+        <span class="cache-badge" id="cb-${v.id}" style="display:none;"></span>
       </div>
       <div class="card-play-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -538,6 +535,7 @@ async function updateSyncStatus(videos) {
       if (match) {
         cachedCount++;
         badge.className = 'cache-badge cached';
+        badge.style.display = 'flex';
         badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
       } else {
         badge.className = 'cache-badge';
@@ -570,8 +568,8 @@ async function precacheVideosWithProgress(videos) {
     // ダウンロード中バッジを表示
     const badge = document.getElementById(`cb-${v.id}`);
     if (badge) {
-      badge.className = 'cache-badge downloading';
       badge.style.display = 'flex';
+      badge.className = 'cache-badge downloading';
       badge.innerHTML = `<span class="dl-spinner"></span> ダウンロード中…`;
     }
 

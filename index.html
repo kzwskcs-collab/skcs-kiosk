@@ -270,6 +270,51 @@
       animation: spin 0.8s linear infinite;
     }
 
+
+    /* スクリーンセーバーオーバーレイ */
+    .screensaver-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.92);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px;
+    }
+    .screensaver-overlay.active { display: flex; }
+    .screensaver-video {
+      width: 100%; height: 100%;
+      position: absolute; inset: 0;
+      object-fit: contain;
+    }
+    .screensaver-info {
+      position: absolute; bottom: 32px; left: 0; right: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .screensaver-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 20px; font-weight: 600; color: white;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+    .screensaver-progress {
+      display: flex; gap: 6px;
+    }
+    .screensaver-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transition: background 0.3s;
+    }
+    .screensaver-dot.active { background: white; }
+    .screensaver-tap-hint {
+      font-size: 13px; color: rgba(255,255,255,0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .screensaver-cache-info {
+      font-size: 12px; color: rgba(255,255,255,0.4);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
     /* トースト */
     .toast {
       position: fixed; bottom: 32px; left: 50%;
@@ -365,6 +410,18 @@
   </div>
 </div>
 
+
+<!-- スクリーンセーバーオーバーレイ（自動キャッシュ用） -->
+<div class="screensaver-overlay" id="screensaverOverlay" onclick="exitScreensaver()">
+  <video class="screensaver-video" id="screensaverVideo" muted playsinline preload="auto"></video>
+  <div class="screensaver-info">
+    <div class="screensaver-title" id="screensaverTitle"></div>
+    <div class="screensaver-progress" id="screensaverProgress"></div>
+    <div class="screensaver-tap-hint">タップして動画を選択</div>
+    <div class="screensaver-cache-info" id="screensaverCacheInfo"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -390,6 +447,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     showScreen('listScreen');
     await updateSyncStatus(allVideos);
   }
+
+  // スクリーンセーバータイマー開始（動画ロード後）
+  setTimeout(resetScreensaverTimer, 5000);
 
   // オンラインなら最新データを取得
   if (navigator.onLine) {
@@ -628,6 +688,85 @@ function catClass(c) {
   if (c.includes('術後') || c.includes('生活')) return 'cat-lifestyle';
   return 'cat-other';
 }
+
+
+// ========== スクリーンセーバー（自動キャッシュ） ==========
+let screensaverTimer = null;
+let screensaverIndex = 0;
+let isScreensaverActive = false;
+const SCREENSAVER_DELAY = 3 * 60 * 1000; // 3分間操作なしで起動
+
+function resetScreensaverTimer() {
+  if (screensaverTimer) clearTimeout(screensaverTimer);
+  if (allVideos.length > 0 && !isScreensaverActive) {
+    screensaverTimer = setTimeout(startScreensaver, SCREENSAVER_DELAY);
+  }
+}
+
+function startScreensaver() {
+  if (allVideos.length === 0) return;
+  isScreensaverActive = true;
+  screensaverIndex = 0;
+  document.getElementById('screensaverOverlay').classList.add('active');
+
+  // 進捗ドット生成
+  const dots = document.getElementById('screensaverProgress');
+  dots.innerHTML = allVideos.map((_, i) =>
+    `<div class="screensaver-dot${i === 0 ? ' active' : ''}" id="ss-dot-${i}"></div>`
+  ).join('');
+
+  playScreensaverVideo(0);
+}
+
+function playScreensaverVideo(index) {
+  const videos = allVideos.filter(v => v.videoUrl);
+  if (videos.length === 0) return;
+
+  const v = videos[index % videos.length];
+  const ssVideo = document.getElementById('screensaverVideo');
+  const ssTitle = document.getElementById('screensaverTitle');
+  const ssCacheInfo = document.getElementById('screensaverCacheInfo');
+
+  ssVideo.src = v.videoUrl;
+  ssVideo.preload = 'auto';
+  ssTitle.textContent = v.title;
+
+  // ドット更新
+  document.querySelectorAll('.screensaver-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === index % videos.length);
+  });
+
+  ssVideo.onended = () => {
+    screensaverIndex++;
+    playScreensaverVideo(screensaverIndex % videos.length);
+  };
+
+  ssVideo.oncanplay = async () => {
+    // キャッシュ状態確認
+    if ('caches' in window) {
+      const cache = await caches.open('kiosk-videos-v1');
+      const cached = await cache.match(v.videoUrl);
+      ssCacheInfo.textContent = cached ? '✅ キャッシュ済み' : '⬇️ キャッシュ中…';
+    }
+    ssVideo.play().catch(() => {});
+  };
+}
+
+function exitScreensaver() {
+  isScreensaverActive = false;
+  const ssVideo = document.getElementById('screensaverVideo');
+  ssVideo.pause();
+  ssVideo.src = '';
+  document.getElementById('screensaverOverlay').classList.remove('active');
+  resetScreensaverTimer();
+}
+
+// ユーザー操作でタイマーをリセット
+['click', 'touchstart', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (!isScreensaverActive) resetScreensaverTimer();
+  }, { passive: true });
+});
 
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g, m =>

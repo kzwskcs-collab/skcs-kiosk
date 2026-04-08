@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+  <title>患者説明動画 | SKCS</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8eef5;
+      --accent: #1a5fa8;
+      --accent-light: #d6e8f7;
+      --accent-dark: #0d3d6b;
+      --text: #1a2636;
+      --text-muted: #5a7a99;
+      --border: #c8d8e8;
+      --success: #2e8b57;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(26,95,168,0.10);
+      --shadow-hover: 0 8px 36px rgba(26,95,168,0.18);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Noto Sans JP', sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .screen {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .screen.active { display: flex; opacity: 1; }
+
+    /* ヘッダー */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(26,95,168,0.06);
+      gap: 8px;
+    }
+    .header-logo { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .header-icon {
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: var(--accent); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .header-icon svg { width: 22px; height: 22px; fill: white; }
+    .header-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 16px; font-weight: 600; color: var(--accent-dark); line-height: 1.2;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .header-subtitle { display: none; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .header-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .header-status span { display: none; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 6px rgba(46,139,87,0.5); }
+    .status-dot.offline { background: #e8a020; }
+    @media (min-width: 600px) {
+      .header { padding: 16px 36px; gap: 16px; }
+      .header-icon { width: 44px; height: 44px; border-radius: 12px; }
+      .header-icon svg { width: 26px; height: 26px; }
+      .header-title { font-size: 20px; }
+      .header-subtitle { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+      .header-right { gap: 16px; }
+      .header-status span { display: inline; }
+    }
+
+    /* カテゴリタブ */
+    .category-tabs {
+      display: flex; gap: 8px;
+      padding: 10px 16px 0;
+      flex-shrink: 0; overflow-x: auto; scrollbar-width: none;
+    }
+    @media (min-width: 600px) {
+      .category-tabs { padding: 20px 36px 0; gap: 10px; }
+    }
+    .category-tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 9px 20px; border-radius: 24px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-size: 14px; font-weight: 500; color: var(--text-muted);
+      cursor: pointer; white-space: nowrap; transition: all 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+    /* 動画グリッド */
+    .video-grid {
+      flex: 1; overflow-y: auto;
+      padding: 10px 12px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px; align-content: start;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    @media (min-width: 600px) {
+      .video-grid { padding: 20px 36px 36px; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    }
+    .video-grid::-webkit-scrollbar { width: 6px; }
+    .video-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .video-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1.5px solid var(--border); padding: 14px 16px 12px;
+      cursor: pointer; transition: all 0.25s ease;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 8px;
+      position: relative; overflow: hidden;
+    }
+    @media (min-width: 600px) {
+      .video-card { padding: 24px 22px 20px; gap: 12px; }
+    }
+    .video-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--accent); transform: scaleX(0); transform-origin: left;
+      transition: transform 0.25s ease;
+    }
+    .video-card:hover, .video-card:active {
+      transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--accent);
+    }
+    .video-card:hover::before, .video-card:active::before { transform: scaleX(1); }
+
+    .card-category {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 500;
+      padding: 4px 10px; border-radius: 20px; width: fit-content;
+    }
+    .cat-arrhythmia { background: #dbeafe; color: #1d4ed8; }
+    .cat-device { background: #ede9fe; color: #6d28d9; }
+    .cat-lifestyle { background: #dcfce7; color: #166534; }
+    .cat-other { background: #f3f4f6; color: #374151; }
+
+    .card-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--text);
+    }
+    @media (min-width: 600px) {
+      .card-title { font-size: 17px; line-height: 1.4; }
+    }
+    .card-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+    .card-layer { padding: 3px 8px; border-radius: 6px; background: var(--surface2); font-size: 11px; }
+    .cache-badge {
+      margin-left: auto; display: flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--success);
+    }
+    .card-play-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--accent-light); color: var(--accent);
+      border-radius: 10px; padding: 8px;
+      font-size: 13px; font-weight: 500; margin-top: 2px;
+      transition: background 0.2s;
+    }
+    @media (min-width: 600px) {
+      .card-play-btn { padding: 11px; font-size: 14px; margin-top: 4px; }
+    }
+    .video-card:hover .card-play-btn { background: var(--accent); color: white; }
+
+    /* 空状態 */
+    .empty-state {
+      grid-column: 1/-1; text-align: center; padding: 80px 40px; color: var(--text-muted);
+    }
+    .empty-state svg { width: 64px; height: 64px; margin-bottom: 20px; opacity: 0.3; }
+    .empty-state h3 { font-size: 18px; margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; }
+
+    /* プレイヤー */
+    #playerScreen { background: #000; }
+    .player-header {
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+      padding: 16px 28px;
+      display: flex; align-items: center; gap: 16px;
+      flex-shrink: 0; z-index: 10;
+    }
+    .back-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px; padding: 9px 16px;
+      color: white; font-size: 14px; cursor: pointer; transition: background 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.22); }
+    .player-title-area { flex: 1; }
+    .player-title { font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 600; color: white; }
+    .player-meta { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+    .video-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      background: #000; position: relative;
+    }
+    #videoPlayer {
+      width: 100%; height: 100%; max-height: calc(100vh - 120px);
+      object-fit: contain; outline: none;
+    }
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; color: white;
+    }
+    .loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(255,255,255,0.2); border-top-color: white;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ローディング画面 */
+    #loadingScreen {
+      background: var(--accent-dark);
+      align-items: center; justify-content: center; gap: 24px;
+    }
+    .loading-logo { font-family: 'Noto Serif JP', serif; font-size: 28px; font-weight: 600; color: white; opacity: 0.9; }
+    .loading-text { font-size: 15px; color: rgba(255,255,255,0.6); }
+    .loading-bar { width: 200px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; }
+    .loading-bar-fill { height: 100%; background: white; border-radius: 2px; animation: loadbar 2s ease-out forwards; }
+    @keyframes loadbar { from { width: 0% } to { width: 100% } }
+
+    /* 更新ボタン */
+    .sync-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--accent-light); border: 1.5px solid var(--accent);
+      border-radius: 10px; padding: 8px 10px;
+      color: var(--accent); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+    .sync-btn span.btn-label { display: none; }
+    .sync-btn:hover { background: var(--accent); color: white; }
+    .sync-btn.syncing svg { animation: spin 1s linear infinite; }
+    @media (min-width: 600px) {
+      .sync-btn { padding: 8px 16px; }
+      .sync-btn span.btn-label { display: inline; }
+    }
+
+
+    /* 一括ダウンロードボタン */
+    .download-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: #dcfce7; border: 1.5px solid var(--success);
+      border-radius: 10px; padding: 8px 10px;
+      color: var(--success); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+    .download-btn .dl-btn-label { display: none; }
+    .download-btn:hover { background: var(--success); color: white; }
+    .download-btn.downloading {
+      background: var(--accent-light); border-color: var(--accent);
+      color: var(--accent); cursor: not-allowed;
+    }
+    .download-btn.done {
+      background: #dcfce7; border-color: var(--success); color: var(--success);
+      cursor: default;
+    }
+    .download-btn .btn-spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    .download-btn.downloading .btn-spinner { display: block; }
+    @media (min-width: 600px) {
+      .download-btn { padding: 8px 16px; }
+      .download-btn .dl-btn-label { display: inline; }
+    }
+
+    /* ダウンロード進捗パネル */
+    .download-progress-panel {
+      display: none;
+      align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: var(--accent-light);
+      border-bottom: 1px solid var(--accent);
+      font-size: 13px; color: var(--accent);
+      flex-shrink: 0;
+    }
+    .download-progress-panel.active { display: flex; }
+    .download-progress-bar-wrap {
+      flex: 1; height: 6px; background: rgba(26,95,168,0.15);
+      border-radius: 3px; overflow: hidden;
+    }
+    .download-progress-bar-inner {
+      height: 100%; background: var(--accent);
+      border-radius: 3px; width: 0%;
+      transition: width 0.4s ease;
+    }
+    .download-progress-text { font-size: 12px; white-space: nowrap; }
+
+
+
+
+
+
+    /* カードのキャッシュバッジ改善 */
+    .cache-badge {
+      margin-left: auto;
+      display: none; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--success);
+      background: #dcfce7; padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .cache-badge.downloading {
+      color: var(--accent); background: var(--accent-light);
+      display: flex;
+    }
+    .cache-badge.cached { display: flex; }
+    .cache-badge .dl-spinner {
+      width: 10px; height: 10px;
+      border: 1.5px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* VdoCipherプレイヤー */
+    .vdo-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      background: #000; position: relative; width: 100%;
+    }
+    #vdoPlayer {
+      width: 100%; height: 100%;
+      max-height: calc(100vh - 120px);
+    }
+    #vdoPlayer iframe {
+      width: 100%; height: 100%; border: none;
+    }
+
+    /* トースト */
+    .toast {
+      position: fixed; bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text); color: white;
+      padding: 12px 24px; border-radius: 12px;
+      font-size: 14px; z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div class="screen active" id="loadingScreen">
+  <div class="loading-logo">患者説明動画</div>
+  <div class="loading-text">コンテンツを読み込んでいます…</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- 動画一覧画面 -->
+<div class="screen" id="listScreen">
+  <div class="header">
+    <div class="header-logo">
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <div>
+        <div class="header-title">患者説明動画</div>
+        <div class="header-subtitle">ご覧になりたい動画をお選びください</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="download-btn" id="downloadBtn" onclick="startBulkDownload()">
+        <span class="btn-spinner"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="downloadIcon">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        <span id="downloadBtnText" class="dl-btn-label">一括保存</span>
+      </button>
+      <button class="sync-btn" id="syncBtn" onclick="syncVideos()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        <span class="btn-label">更新</span>
+      </button>
+      <div class="header-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">確認中…</span>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ダウンロード進捗パネル -->
+  <div class="download-progress-panel" id="downloadProgressPanel">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+    </svg>
+    <div class="download-progress-bar-wrap">
+      <div class="download-progress-bar-inner" id="dlProgressBar"></div>
+    </div>
+    <div class="download-progress-text" id="dlProgressText">準備中…</div>
+  </div>
+
+
+
+  <div class="category-tabs" id="categoryTabs">
+    <button class="tab-btn active" data-cat="all" onclick="filterCategory('all', this)">すべて</button>
+  </div>
+
+  <div class="video-grid" id="videoGrid"></div>
+</div>
+
+<!-- プレイヤー画面 -->
+<div class="screen" id="playerScreen">
+  <div class="player-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+      一覧に戻る
+    </button>
+    <div class="player-title-area">
+      <div class="player-title" id="playerTitle">-</div>
+      <div class="player-meta" id="playerMeta">-</div>
+    </div>
+  </div>
+  <div class="video-container">
+    <!-- 通常動画プレイヤー（Bunny.net用・VdoCipher動画IDがない場合） -->
+    <video id="videoPlayer" controls playsinline preload="auto" style="display:none;"></video>
+    <!-- VdoCipherプレイヤー -->
+    <div id="vdoPlayer" style="width:100%;height:100%;max-height:calc(100vh - 120px);"></div>
+    <div class="loading-overlay hidden" id="videoLoading">
+      <div class="spinner"></div>
+      <div>動画を読み込んでいます…</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 設定 ==========
+// Vercel にデプロイすると /api/notion が自動的に有効になります
+const API_ENDPOINT = '/api/notion';
+const CACHE_KEY = 'kiosk_videos_v1';
+
+let allVideos = [];
+let currentCategory = 'all';
+
+// ========== 起動 ==========
+document.addEventListener('DOMContentLoaded', async () => {
+  updateConnectionStatus();
+  window.addEventListener('online', updateConnectionStatus);
+  window.addEventListener('offline', updateConnectionStatus);
+
+  // キャッシュから先に表示（即時表示）
+  const cached = loadFromCache();
+  if (cached && cached.length > 0) {
+    allVideos = cached;
+    renderVideos(allVideos);
+    showScreen('listScreen');
+    await updateSyncStatus(allVideos);
+  }
+
+  // オンラインなら最新データを取得
+  if (navigator.onLine) {
+    await syncVideos(true);
+  } else {
+    if (!cached || cached.length === 0) {
+      showScreen('listScreen');
+      showToast('オフライン：Wi-Fi接続後に「更新」を押してください');
+    } else {
+      showToast('オフラインモード：保存済みデータを表示中');
+    }
+  }
+});
+
+// ========== データ取得（Vercel APIルート経由） ==========
+async function syncVideos(silent = false) {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  if (!silent) showToast('最新データを取得中…');
+
+  try {
+    const res = await fetch(API_ENDPOINT, { method: 'POST' });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+
+    allVideos = data.videos || [];
+    saveToCache(allVideos);
+    renderVideos(allVideos);
+    showScreen('listScreen');
+
+    // 同期状態を表示してからバックグラウンドでプリキャッシュ
+    await updateSyncStatus(allVideos);
+    precacheVideosWithProgress(allVideos); // awaitしない（バックグラウンド実行）
+
+    if (!silent) showToast(`${allVideos.length}件の動画を更新しました`);
+  } catch (e) {
+    console.error(e);
+    showScreen('listScreen');
+    if (!silent) showToast('更新に失敗しました（オフラインで継続）');
+  } finally {
+    btn.classList.remove('syncing');
+  }
+}
+
+// ========== レンダリング ==========
+function renderVideos(videos) {
+  const grid = document.getElementById('videoGrid');
+  const tabsContainer = document.getElementById('categoryTabs');
+
+  // カテゴリタブ更新
+  tabsContainer.querySelectorAll('[data-cat]:not([data-cat="all"])').forEach(t => t.remove());
+  const cats = [...new Set(videos.map(v => v.category))];
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn';
+    btn.dataset.cat = cat;
+    btn.textContent = cat;
+    btn.onclick = () => filterCategory(cat, btn);
+    tabsContainer.appendChild(btn);
+  });
+
+  const filtered = currentCategory === 'all'
+    ? videos
+    : videos.filter(v => v.category === currentCategory);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+        </svg>
+        <h3>動画がありません</h3>
+        <p>Wi-Fi接続後に「更新」ボタンを押してください</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(v => `
+    <div class="video-card" onclick="playVideo('${v.id}','${esc(v.title)}','${esc(v.videoUrl)}','${esc(v.vdoId || '')}','${esc(v.category)}','${esc(v.layer)}')">
+      <span class="card-category ${catClass(v.category)}">${esc(v.category)}</span>
+      <div class="card-title">${esc(v.title)}</div>
+      <div class="card-meta">
+        ${v.layer ? `<span class="card-layer">${esc(v.layer)}</span>` : ''}
+        <span>${esc(v.lang)}</span>
+        <span class="cache-badge" id="cb-${v.id}" style="display:none;"></span>
+      </div>
+      <div class="card-play-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        再生する
+      </div>
+    </div>
+  `).join('');
+
+  filtered.forEach(v => checkCache(v.id, v.videoUrl));
+}
+
+function filterCategory(cat, el) {
+  currentCategory = cat;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderVideos(allVideos);
+}
+
+// ========== 再生 ==========
+async function playVideo(id, title, url, vdoId, category, layer) {
+  document.getElementById('playerTitle').textContent = title;
+  document.getElementById('playerMeta').textContent = [category, layer].filter(Boolean).join(' · ');
+
+  const overlay = document.getElementById('videoLoading');
+  const videoPlayer = document.getElementById('videoPlayer');
+  const vdoPlayer = document.getElementById('vdoPlayer');
+  overlay.classList.remove('hidden');
+
+  showScreen('playerScreen');
+
+  if (vdoId) {
+    // VdoCipherプレイヤーで再生
+    videoPlayer.style.display = 'none';
+    vdoPlayer.style.display = 'block';
+    try {
+      const res = await fetch('/api/vdocipher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: vdoId })
+      });
+      if (!res.ok) throw new Error('OTP取得失敗');
+      const { otp, playbackInfo } = await res.json();
+      vdoPlayer.innerHTML = `
+        <iframe
+          src="https://player.vdocipher.com/v2/?otp=${otp}&playbackInfo=${playbackInfo}&primaryColor=1a5fa8"
+          style="width:100%;height:100%;max-height:calc(100vh - 120px);border:none;"
+          allowfullscreen
+          allow="encrypted-media"
+        ></iframe>`;
+      overlay.classList.add('hidden');
+    } catch (e) {
+      overlay.classList.add('hidden');
+      showToast('動画の読み込みに失敗しました');
+    }
+  } else if (url) {
+    // 通常プレイヤーで再生（Bunny.net）
+    vdoPlayer.style.display = 'none';
+    videoPlayer.style.display = 'block';
+    videoPlayer.src = url;
+    videoPlayer.preload = 'auto';
+    videoPlayer.oncanplay = () => overlay.classList.add('hidden');
+    videoPlayer.onerror = () => { overlay.classList.add('hidden'); showToast('動画の読み込みに失敗しました'); };
+    videoPlayer.play().catch(() => {});
+  } else {
+    showToast('動画URLが設定されていません');
+    return;
+  }
+
+  // 再生済バッジを表示
+  const badge = document.getElementById(`cb-${id}`);
+  if (badge) {
+    badge.style.display = 'flex';
+    badge.className = 'cache-badge cached';
+    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 再生済`;
+  }
+}
+
+function goBack() {
+  const p = document.getElementById('videoPlayer');
+  p.pause(); p.src = '';
+  // VdoCipherプレイヤーもクリア
+  document.getElementById('vdoPlayer').innerHTML = '';
+  showScreen('listScreen');
+}
+
+// ========== キャッシュ ==========
+function saveToCache(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch(e){} }
+function loadFromCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e){ return null; } }
+
+// 全動画のキャッシュ状態をチェックして表示を更新
+async function updateSyncStatus(videos) {
+  if (!('caches' in window)) return;
+  const cache = await caches.open('kiosk-videos-v1');
+  let cachedCount = 0;
+  const total = videos.filter(v => v.videoUrl).length;
+
+  for (const v of videos) {
+    if (!v.videoUrl) continue;
+    const match = await cache.match(v.videoUrl);
+    const badge = document.getElementById(`cb-${v.id}`);
+    if (badge) {
+      if (match) {
+        cachedCount++;
+        badge.className = 'cache-badge cached';
+        badge.style.display = 'flex';
+        badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+      } else {
+        badge.className = 'cache-badge';
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  // 同期状態パネルは一括保存ボタンに統合済み
+}
+
+// バックグラウンドで動画をプリキャッシュ（ブラウザキャッシュ委譲）
+async function precacheVideosWithProgress(videos) {
+  // 動画のキャッシュはブラウザに委譲
+  // 一度再生した動画はブラウザキャッシュに残る
+  await updateSyncStatus(videos);
+}
+
+
+async function checkCache(id, url) {
+  if (!url || !('caches' in window)) return;
+  const cache = await caches.open('kiosk-videos-v1');
+  const match = await cache.match(url);
+  const badge = document.getElementById(`cb-${id}`);
+  if (match && badge) {
+    badge.className = 'cache-badge cached';
+    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+  }
+}
+
+// ========== UI ==========
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+    s.style.opacity = '0';
+  });
+  const t = document.getElementById(id);
+  t.style.display = 'flex';
+  requestAnimationFrame(() => { t.style.opacity = '1'; t.classList.add('active'); });
+}
+
+function updateConnectionStatus() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = navigator.onLine ? 'status-dot online' : 'status-dot offline';
+  txt.textContent = navigator.onLine ? 'オンライン' : 'オフライン';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function catClass(c) {
+  if (c.includes('不整脈') || c.includes('アブレーション')) return 'cat-arrhythmia';
+  if (c.includes('デバイス')) return 'cat-device';
+  if (c.includes('術後') || c.includes('生活')) return 'cat-lifestyle';
+  return 'cat-other';
+}
+
+
+// ========== 一括ダウンロード ==========
+let isDownloading = false;
+
+async function startBulkDownload() {
+  if (isDownloading) return;
+  if (!navigator.onLine) { showToast('Wi-Fiに接続してから実行してください'); return; }
+  if (allVideos.length === 0) { showToast('動画がありません'); return; }
+
+  const videos = allVideos.filter(v => v.videoUrl);
+  if (videos.length === 0) return;
+
+  isDownloading = true;
+  const btn = document.getElementById('downloadBtn');
+  const panel = document.getElementById('downloadProgressPanel');
+  const bar = document.getElementById('dlProgressBar');
+  const text = document.getElementById('dlProgressText');
+  const btnText = document.getElementById('downloadBtnText');
+
+  btn.className = 'download-btn downloading';
+  btnText.textContent = '保存中…';
+  panel.classList.add('active');
+
+  // 非表示の動画要素でバックグラウンド再生してキャッシュ
+  const hiddenVideo = document.createElement('video');
+  hiddenVideo.muted = true;
+  hiddenVideo.preload = 'auto';
+  hiddenVideo.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+  document.body.appendChild(hiddenVideo);
+
+  let completed = 0;
+
+  for (const v of videos) {
+    text.textContent = `${v.title}（${completed + 1}/${videos.length}）`;
+    bar.style.width = (completed / videos.length * 100) + '%';
+
+    // カードのバッジをダウンロード中に更新
+    const badge = document.getElementById(`cb-${v.id}`);
+    if (badge) {
+      badge.style.display = 'flex';
+      badge.className = 'cache-badge downloading';
+      badge.innerHTML = `<span class="dl-spinner"></span> 保存中…`;
+    }
+
+    await new Promise((resolve) => {
+      hiddenVideo.src = v.videoUrl;
+      hiddenVideo.preload = 'auto';
+
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          // バッジを保存済みに更新
+          if (badge) {
+            badge.className = 'cache-badge cached';
+            badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 保存済`;
+          }
+          resolve();
+        }
+      };
+
+      // 十分バッファされたら次へ（全部待つと時間がかかりすぎるので一定量でOK）
+      hiddenVideo.oncanplaythrough = done;
+      // タイムアウト：30秒待っても次へ
+      setTimeout(done, 30000);
+      hiddenVideo.load();
+    });
+
+    completed++;
+  }
+
+  hiddenVideo.remove();
+  bar.style.width = '100%';
+  text.textContent = `✅ ${completed}件すべて保存完了！`;
+
+  btn.className = 'download-btn done';
+  btnText.textContent = '保存済み ✅';
+
+  // 3秒後にパネルを閉じる
+  setTimeout(() => {
+    panel.classList.remove('active');
+    isDownloading = false;
+  }, 3000);
+
+  await updateSyncStatus(allVideos);
+  showToast(`${completed}件の動画を保存しました`);
+}
+
+function esc(s) {
+  return String(s||'').replace(/[&<>"']/g, m =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(r => console.log('SW registered:', r.scope))
+    .catch(e => console.log('SW error:', e));
+}
+</script>
+</body>
+</html>

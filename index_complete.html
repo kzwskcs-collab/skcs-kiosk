@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>患者説明動画 | SKCS</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8eef5;
+      --accent: #1a5fa8;
+      --accent-light: #d6e8f7;
+      --accent-dark: #0d3d6b;
+      --text: #1a2636;
+      --text-muted: #5a7a99;
+      --border: #c8d8e8;
+      --success: #2e8b57;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(26,95,168,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; background: var(--bg); font-family: 'Noto Sans JP', sans-serif; color: var(--text); overflow: hidden; }
+
+    /* ========== PIN画面 ========== */
+    #pinScreen {
+      position: fixed; inset: 0; z-index: 9000;
+      background: var(--accent-dark);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+    }
+    #pinScreen.hidden { display: none; }
+    .pin-title { font-family: 'Noto Serif JP', serif; font-size: 24px; font-weight: 600; color: white; }
+    .pin-subtitle { font-size: 14px; color: rgba(255,255,255,0.6); }
+    .pin-dots { display: flex; gap: 12px; }
+    .pin-dot { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.2s; }
+    .pin-dot.filled { background: white; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 240px; }
+    .pin-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 16px; color: white; font-size: 22px; font-weight: 500; cursor: pointer; text-align: center; font-family: 'Noto Sans JP', sans-serif; }
+    .pin-btn:active { background: rgba(255,255,255,0.3); }
+    .pin-error { font-size: 13px; color: #ff6b6b; height: 18px; }
+
+    /* ========== メイン画面 ========== */
+    #mainScreen { position: fixed; inset: 0; display: flex; flex-direction: column; }
+
+    /* ヘッダー */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; gap: 8px;
+      box-shadow: 0 2px 12px rgba(26,95,168,0.06);
+    }
+    .header-logo { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .header-icon { width: 36px; height: 36px; flex-shrink: 0; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .header-icon svg { width: 20px; height: 20px; fill: white; }
+    .header-title { font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 600; color: var(--accent-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .header-btn {
+      display: flex; align-items: center; gap: 4px;
+      border-radius: 10px; padding: 7px 10px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif; border: 1.5px solid;
+      white-space: nowrap;
+    }
+    .btn-download { background: #dcfce7; border-color: var(--success); color: var(--success); }
+    .btn-download:hover { background: var(--success); color: white; }
+    .btn-download.downloading { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .btn-sync { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .btn-sync:hover { background: var(--accent); color: white; }
+    .btn-sync.syncing svg { animation: spin 1s linear infinite; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 6px rgba(46,139,87,0.5); }
+    .status-dot.offline { background: #e8a020; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ダウンロード進捗 */
+    .dl-progress {
+      display: none; align-items: center; gap: 10px;
+      padding: 8px 16px; background: var(--accent-light);
+      border-bottom: 1px solid var(--accent);
+      font-size: 12px; color: var(--accent); flex-shrink: 0;
+    }
+    .dl-progress.active { display: flex; }
+    .dl-bar-wrap { flex: 1; height: 4px; background: rgba(26,95,168,0.15); border-radius: 2px; overflow: hidden; }
+    .dl-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; border-radius: 2px; }
+
+    /* カテゴリタブ（第1層） */
+    .cat-tabs {
+      display: flex; gap: 8px; padding: 12px 16px 0;
+      flex-shrink: 0; overflow-x: auto; scrollbar-width: none;
+      background: var(--bg);
+    }
+    .cat-tabs::-webkit-scrollbar { display: none; }
+
+    /* 種別タブ（第2層） */
+    .type-tabs {
+      display: flex; gap: 8px; padding: 8px 16px 0;
+      flex-shrink: 0; overflow-x: auto; scrollbar-width: none;
+      background: var(--bg);
+    }
+    .type-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      padding: 7px 16px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+      cursor: pointer; white-space: nowrap;
+      font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0;
+    }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+    /* 動画グリッド */
+    .video-grid {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 動画カード */
+    .video-card {
+      background: var(--surface); border-radius: 14px;
+      border: 1.5px solid var(--border); padding: 16px;
+      cursor: pointer; box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 14px;
+      flex-shrink: 0;
+    }
+    .video-card:active { background: var(--accent-light); border-color: var(--accent); }
+    .card-icon {
+      width: 44px; height: 44px; flex-shrink: 0;
+      background: var(--accent-light); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-icon svg { width: 22px; height: 22px; fill: var(--accent); }
+    .card-body { flex: 1; min-width: 0; }
+    .card-title { font-family: 'Noto Serif JP', serif; font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .card-badge {
+      flex-shrink: 0; font-size: 11px; padding: 3px 8px;
+      border-radius: 6px; display: none;
+    }
+    .card-badge.cached { display: block; background: #dcfce7; color: var(--success); }
+    .card-badge.playing { display: block; background: var(--accent-light); color: var(--accent); }
+    .card-arrow { flex-shrink: 0; color: var(--text-muted); }
+
+    /* 空状態 */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
+
+    /* ========== プレイヤー画面 ========== */
+    #playerScreen { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; z-index: 100; }
+    #playerScreen.active { display: flex; }
+    .player-header {
+      background: rgba(0,0,0,0.85); padding: 12px 20px;
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px; padding: 8px 14px;
+      color: white; font-size: 13px; cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .player-title { font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 600; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .video-container { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+    #videoPlayer { width: 100%; height: 100%; object-fit: contain; outline: none; }
+    #vdoPlayer { width: 100%; height: 100%; }
+    #vdoPlayer iframe { width: 100%; height: 100%; border: none; }
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: white;
+    }
+    .loading-overlay.hidden { display: none; }
+    .spinner { width: 44px; height: 44px; border: 3px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+    /* ローディング */
+    #loadingScreen { position: fixed; inset: 0; background: var(--accent-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 200; }
+    #loadingScreen.hidden { display: none; }
+    .loading-logo { font-family: 'Noto Serif JP', serif; font-size: 26px; font-weight: 600; color: white; }
+    .loading-bar { width: 180px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; }
+    .loading-bar-fill { height: 100%; background: white; animation: loadbar 2s ease-out forwards; }
+    @keyframes loadbar { from { width: 0 } to { width: 100% } }
+
+    /* トースト */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--text); color: white; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 9999; transition: transform 0.3s; pointer-events: none; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (min-width: 600px) {
+      .header { padding: 14px 32px; }
+      .header-icon { width: 42px; height: 42px; }
+      .header-icon svg { width: 24px; height: 24px; }
+      .header-title { font-size: 19px; }
+      .header-btn { padding: 8px 14px; font-size: 13px; gap: 6px; }
+      .cat-tabs { padding: 16px 32px 0; gap: 10px; }
+      .type-tabs { padding: 10px 32px 0; gap: 10px; }
+      .video-grid { padding: 16px 32px 28px; gap: 12px; }
+      .video-card { padding: 18px 20px; }
+      .card-title { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PINコード認証 -->
+<div id="pinScreen">
+  <div class="pin-title">患者説明動画</div>
+  <div class="pin-subtitle">PINコードを入力してください</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pinError"></div>
+  <div class="pin-grid">
+    <button class="pin-btn" onclick="pinInput('1')">1</button>
+    <button class="pin-btn" onclick="pinInput('2')">2</button>
+    <button class="pin-btn" onclick="pinInput('3')">3</button>
+    <button class="pin-btn" onclick="pinInput('4')">4</button>
+    <button class="pin-btn" onclick="pinInput('5')">5</button>
+    <button class="pin-btn" onclick="pinInput('6')">6</button>
+    <button class="pin-btn" onclick="pinInput('7')">7</button>
+    <button class="pin-btn" onclick="pinInput('8')">8</button>
+    <button class="pin-btn" onclick="pinInput('9')">9</button>
+    <button class="pin-btn" onclick="pinClear()" style="font-size:13px;">クリア</button>
+    <button class="pin-btn" onclick="pinInput('0')">0</button>
+    <button class="pin-btn" onclick="pinDelete()" style="font-size:16px;">⌫</button>
+  </div>
+</div>
+
+<!-- ローディング -->
+<div id="loadingScreen">
+  <div class="loading-logo">患者説明動画</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.6)">読み込んでいます…</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- メイン画面 -->
+<div id="mainScreen">
+  <div class="header">
+    <div class="header-logo">
+      <div class="header-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      <div class="header-title">患者説明動画</div>
+    </div>
+    <div class="header-right">
+      <button class="header-btn btn-download" id="dlBtn" onclick="startBulkDownload()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span id="dlBtnText">一括保存</span>
+      </button>
+      <button class="header-btn btn-sync" id="syncBtn" onclick="syncVideos()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        <span class="btn-label-full">更新</span>
+      </button>
+      <div class="status-dot" id="statusDot"></div>
+    </div>
+  </div>
+
+  <!-- ダウンロード進捗 -->
+  <div class="dl-progress" id="dlProgress">
+    <div class="dl-bar-wrap"><div class="dl-bar" id="dlBar"></div></div>
+    <div id="dlText" style="white-space:nowrap;font-size:11px;">準備中…</div>
+  </div>
+
+  <!-- カテゴリタブ（第1層） -->
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <!-- 種別タブ（第2層） -->
+  <div class="type-tabs" id="typeTabs"></div>
+
+  <!-- 動画グリッド -->
+  <div class="video-grid" id="videoGrid"></div>
+</div>
+
+<!-- プレイヤー -->
+<div id="playerScreen">
+  <div class="player-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      一覧に戻る
+    </button>
+    <div class="player-title" id="playerTitle"></div>
+  </div>
+  <div class="video-container">
+    <video id="videoPlayer" controls playsinline preload="auto" style="display:none;"></video>
+    <div id="vdoPlayer" style="display:none;width:100%;height:100%;"></div>
+    <div class="loading-overlay hidden" id="videoLoading">
+      <div class="spinner"></div>
+      <div style="font-size:14px;">読み込み中…</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 設定 ==========
+const CORRECT_PIN = '1159';
+const API_ENDPOINT = '/api/notion';
+const CACHE_KEY = 'kiosk_videos_v1';
+
+// タイプの定義
+const TYPE_LABELS = {
+  'overview': '概要版',
+  'detail': '詳細版',
+  'other': 'その他'
+};
+
+let allVideos = [];
+let currentCat = 'all';
+let currentType = 'all';
+let pinValue = '';
+let isDownloading = false;
+
+// ========== PIN認証 ==========
+function pinInput(d) {
+  if (pinValue.length >= 4) return;
+  pinValue += d;
+  updatePinDots();
+  if (pinValue.length === 4) setTimeout(checkPin, 200);
+}
+function pinDelete() { pinValue = pinValue.slice(0,-1); updatePinDots(); }
+function pinClear() { pinValue = ''; updatePinDots(); document.getElementById('pinError').textContent = ''; }
+function updatePinDots() {
+  for (let i=0; i<4; i++) document.getElementById('pd'+i).classList.toggle('filled', i < pinValue.length);
+}
+function checkPin() {
+  if (pinValue === CORRECT_PIN) {
+    document.getElementById('pinScreen').classList.add('hidden');
+  } else {
+    document.getElementById('pinError').textContent = 'PINコードが正しくありません';
+    pinValue = ''; updatePinDots();
+  }
+}
+
+// ========== 起動 ==========
+document.addEventListener('DOMContentLoaded', async () => {
+  updateStatus();
+  window.addEventListener('online', updateStatus);
+  window.addEventListener('offline', updateStatus);
+
+  const cached = loadCache();
+  if (cached && cached.length > 0) {
+    allVideos = cached;
+    renderAll();
+  }
+
+  if (navigator.onLine) {
+    await syncVideos(true);
+  } else {
+    hideLoading();
+    if (!cached || cached.length === 0) showToast('オフライン：Wi-Fi接続後に「更新」を押してください');
+  }
+});
+
+// ========== データ取得 ==========
+async function syncVideos(silent = false) {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  if (!silent) showToast('最新データを取得中…');
+  try {
+    const res = await fetch(API_ENDPOINT, { method: 'POST' });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    allVideos = data.videos || [];
+    saveCache(allVideos);
+    renderAll();
+    hideLoading();
+    if (!silent) showToast(`${allVideos.length}件の動画を更新しました`);
+  } catch(e) {
+    hideLoading();
+    if (!silent) showToast('更新に失敗しました');
+  } finally {
+    btn.classList.remove('syncing');
+  }
+}
+
+// ========== 動画の種別を判定 ==========
+function getVideoType(v) {
+  const title = (v.title || '').toLowerCase();
+  const layer = (v.layer || '').toLowerCase();
+  if (title.includes('概要') || title.includes('overview')) return 'overview';
+  if (title.includes('詳細') || title.includes('detail') || layer.includes('layer2') || layer.includes('同意')) return 'detail';
+  return 'other';
+}
+
+// ========== レンダリング ==========
+function renderAll() {
+  renderCatTabs();
+  renderTypeTabs();
+  renderVideos();
+}
+
+function renderCatTabs() {
+  const tabs = document.getElementById('catTabs');
+  const cats = ['all', ...new Set(allVideos.map(v => v.category).filter(Boolean))];
+  tabs.innerHTML = cats.map(c => `
+    <button class="tab-btn${c === currentCat ? ' active' : ''}" onclick="setCat('${c}')">
+      ${c === 'all' ? 'すべて' : c}
+    </button>
+  `).join('');
+}
+
+function renderTypeTabs() {
+  const tabs = document.getElementById('typeTabs');
+  const filtered = currentCat === 'all' ? allVideos : allVideos.filter(v => v.category === currentCat);
+  const types = ['all', ...new Set(filtered.map(getVideoType))];
+  tabs.innerHTML = types.map(t => `
+    <button class="tab-btn${t === currentType ? ' active' : ''}" onclick="setType('${t}')">
+      ${t === 'all' ? 'すべて' : (TYPE_LABELS[t] || t)}
+    </button>
+  `).join('');
+}
+
+function renderVideos() {
+  const grid = document.getElementById('videoGrid');
+  let filtered = allVideos;
+  if (currentCat !== 'all') filtered = filtered.filter(v => v.category === currentCat);
+  if (currentType !== 'all') filtered = filtered.filter(v => getVideoType(v) === currentType);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><div>動画がありません</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(v => `
+    <div class="video-card" onclick="playVideo('${v.id}','${esc(v.title)}','${esc(v.videoUrl||'')}','${esc(v.vdoId||'')}')">
+      <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      <div class="card-body">
+        <div class="card-title">${esc(v.title)}</div>
+        <div class="card-meta">${esc(v.category||'')}${v.layer ? ' · ' + esc(v.layer) : ''} · ${esc(v.lang||'日本語')}</div>
+      </div>
+      <div class="card-badge" id="cb-${v.id}"></div>
+      <div class="card-arrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>
+  `).join('');
+
+  filtered.forEach(v => checkCacheBadge(v.id, v.videoUrl));
+}
+
+function setCat(cat) {
+  currentCat = cat;
+  currentType = 'all';
+  renderAll();
+}
+
+function setType(type) {
+  currentType = type;
+  renderVideos();
+}
+
+// ========== 再生 ==========
+async function playVideo(id, title, url, vdoId) {
+  document.getElementById('playerTitle').textContent = title;
+  const overlay = document.getElementById('videoLoading');
+  const videoPlayer = document.getElementById('videoPlayer');
+  const vdoPlayer = document.getElementById('vdoPlayer');
+  overlay.classList.remove('hidden');
+  document.getElementById('playerScreen').classList.add('active');
+
+  // バッジを再生中に
+  const badge = document.getElementById('cb-'+id);
+  if (badge) { badge.className = 'card-badge playing'; badge.textContent = '再生中'; }
+
+  if (vdoId) {
+    videoPlayer.style.display = 'none';
+    vdoPlayer.style.display = 'block';
+    try {
+      const res = await fetch('/api/vdocipher', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({videoId: vdoId}) });
+      if (!res.ok) throw new Error('OTP失敗');
+      const {otp, playbackInfo} = await res.json();
+      vdoPlayer.innerHTML = `<iframe src="https://player.vdocipher.com/v2/?otp=${otp}&playbackInfo=${playbackInfo}&primaryColor=1a5fa8" style="width:100%;height:100%;border:none;" allowfullscreen allow="encrypted-media"></iframe>`;
+      overlay.classList.add('hidden');
+    } catch(e) {
+      overlay.classList.add('hidden');
+      showToast('動画の読み込みに失敗しました');
+    }
+  } else if (url) {
+    vdoPlayer.style.display = 'none';
+    videoPlayer.style.display = 'block';
+    videoPlayer.src = url;
+    videoPlayer.oncanplay = () => overlay.classList.add('hidden');
+    videoPlayer.onerror = () => { overlay.classList.add('hidden'); showToast('動画の読み込みに失敗しました'); };
+    videoPlayer.play().catch(()=>{});
+  } else {
+    showToast('動画が設定されていません');
+    document.getElementById('playerScreen').classList.remove('active');
+  }
+}
+
+function goBack() {
+  const vp = document.getElementById('videoPlayer');
+  vp.pause(); vp.src = '';
+  document.getElementById('vdoPlayer').innerHTML = '';
+  document.getElementById('playerScreen').classList.remove('active');
+  // バッジをキャッシュ状態に戻す
+  allVideos.forEach(v => checkCacheBadge(v.id, v.videoUrl));
+}
+
+// ========== 一括保存 ==========
+async function startBulkDownload() {
+  if (isDownloading || !navigator.onLine) { showToast('Wi-Fi接続中に実行してください'); return; }
+  const videos = allVideos.filter(v => v.videoUrl);
+  if (!videos.length) { showToast('保存できる動画がありません（VdoCipher動画はキャッシュ不可）'); return; }
+  isDownloading = true;
+
+  const btn = document.getElementById('dlBtn');
+  const prog = document.getElementById('dlProgress');
+  const bar = document.getElementById('dlBar');
+  const text = document.getElementById('dlText');
+  btn.classList.add('downloading');
+  prog.classList.add('active');
+
+  const hv = document.createElement('video');
+  hv.muted = true; hv.preload = 'auto';
+  hv.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+  document.body.appendChild(hv);
+
+  let done = 0;
+  for (const v of videos) {
+    text.textContent = `${v.title}（${done+1}/${videos.length}）`;
+    bar.style.width = (done/videos.length*100)+'%';
+    const badge = document.getElementById('cb-'+v.id);
+    if (badge) { badge.className='card-badge playing'; badge.textContent='保存中…'; }
+
+    await new Promise(resolve => {
+      hv.src = v.videoUrl;
+      let resolved = false;
+      const finish = () => {
+        if (!resolved) {
+          resolved = true;
+          if (badge) { badge.className='card-badge cached'; badge.textContent='保存済'; }
+          resolve();
+        }
+      };
+      hv.oncanplaythrough = finish;
+      setTimeout(finish, 30000);
+      hv.load();
+    });
+    done++;
+  }
+
+  hv.remove();
+  bar.style.width = '100%';
+  text.textContent = `✅ ${done}件すべて保存完了！`;
+  btn.classList.remove('downloading');
+  document.getElementById('dlBtnText').textContent = '保存済み ✅';
+  setTimeout(() => { prog.classList.remove('active'); isDownloading = false; }, 3000);
+  showToast(`${done}件の動画を保存しました`);
+}
+
+// ========== キャッシュ ==========
+function saveCache(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch(e){} }
+function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e){ return null; } }
+
+async function checkCacheBadge(id, url) {
+  if (!url || !('caches' in window)) return;
+  const cache = await caches.open('kiosk-videos-v1');
+  const match = await cache.match(url);
+  const badge = document.getElementById('cb-'+id);
+  if (match && badge) { badge.className='card-badge cached'; badge.textContent='保存済'; }
+}
+
+// ========== UI ==========
+function hideLoading() { document.getElementById('loadingScreen').classList.add('hidden'); }
+
+function updateStatus() {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + (navigator.onLine ? 'online' : 'offline');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function esc(s) {
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW error:', e));
+}
+</script>
+</body>
+</html>

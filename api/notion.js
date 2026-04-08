@@ -36,7 +36,10 @@ export default async function handler(req, res) {
           filter: {
             and: [
               { property: 'KIOSK表示', checkbox: { equals: true } },
-              { property: 'KIOSK動画URL', url: { is_not_empty: true } },
+              { or: [
+                { property: 'KIOSK動画URL', url: { is_not_empty: true } },
+                { property: 'VdoCipher動画ID', rich_text: { is_not_empty: true } },
+              ]},
             ],
           },
           sorts: [{ property: '順番', direction: 'ascending' }],
@@ -61,6 +64,7 @@ export default async function handler(req, res) {
         layer: p['レイヤー']?.select?.name || '',
         lang: p['言語']?.select?.name || '日本語',
         videoUrl: p['KIOSK動画URL']?.url || '',
+        vdoId: p['VdoCipher動画ID']?.rich_text?.[0]?.plain_text || '',
         order: p['順番']?.number ?? 999,
       };
     });

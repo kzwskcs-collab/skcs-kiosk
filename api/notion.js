@@ -10,6 +10,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+  const hospitalId = req.body?.hospitalId || null;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -40,6 +41,7 @@ export default async function handler(req, res) {
                 { property: 'KIOSK動画URL', url: { is_not_empty: true } },
                 { property: 'VdoCipher動画ID', rich_text: { is_not_empty: true } },
               ]},
+              ...(hospitalId ? [{ property: '対応施設', multi_select: { contains: hospitalId } }] : []),
             ],
           },
           sorts: [{ property: '順番', direction: 'ascending' }],

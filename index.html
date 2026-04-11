@@ -174,11 +174,13 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(navigator.onLine){await sync(true);}else{hide();if(!c||!c.length)toast('オフライン：更新ボタンを押してください');}
 });
 
+const HOSPITAL_ID = new URLSearchParams(window.location.search).get('hospital') || null;
+
 async function sync(s=false){
   const b=document.getElementById('syBtn');b.classList.add('spin');
   if(!s)toast('更新中…');
   try{
-    const r=await fetch(API,{method:'POST'});
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hospitalId:HOSPITAL_ID})});
     if(!r.ok)throw new Error();
     const d=await r.json();
     videos=d.videos||[];sc(videos);render();hide();

@@ -1,31 +1,18 @@
-// Service Worker for SKCS KIOSK
-// オフラインキャッシュ・動画プリキャッシュ
-
-const APP_CACHE = 'kiosk-app-v1';
+// Service Worker for SKCS KIOSK v2
+const APP_CACHE = 'kiosk-app-v2';
 const VIDEO_CACHE = 'kiosk-videos-v1';
 
-// アプリ本体のキャッシュ対象
-const APP_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+const APP_ASSETS = ['/', '/index.html', '/manifest.json'];
 
-// ========== インストール：アプリ本体をキャッシュ ==========
 self.addEventListener('install', event => {
-  console.log('[SW] Installing...');
   event.waitUntil(
-    caches.open(APP_CACHE).then(cache => {
-      return cache.addAll(APP_ASSETS).catch(err => {
-        console.log('[SW] Install cache error (非致命的):', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches.open(APP_CACHE).then(cache =>
+      cache.addAll(APP_ASSETS).catch(err => console.log('[SW] Install error:', err))
+    ).then(() => self.skipWaiting())
   );
 });
 
-// ========== アクティベート：古いキャッシュを削除 ==========
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -36,68 +23,53 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ========== フェッチ：キャッシュ優先戦略 ==========
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // 動画ファイル（mp4）→ キャッシュ優先、なければネット取得してキャッシュ
-  if (url.pathname.endsWith('.mp4') || url.searchParams.has('video')) {
+  // MP4動画 → キャッシュ優先（オフライン再生のため）
+  if (url.pathname.endsWith('.mp4')) {
     event.respondWith(cacheFirstVideo(event.request));
     return;
   }
 
-  // Notion API → ネット優先（オフライン時はスキップ）
-  if (url.hostname.includes('notion.so') || url.hostname.includes('api.notion.com')) {
+  // Notion/VdoCipher API → ネットのみ
+  if (url.hostname.includes('notion') || url.hostname.includes('vdocipher') || url.pathname.startsWith('/api/')) {
     event.respondWith(networkOnly(event.request));
     return;
   }
 
-  // アプリ本体 → キャッシュ優先
-  event.respondWith(cacheFirstApp(event.request));
+  // アプリ本体 → ネット優先（常に最新版を取得・オフライン時はキャッシュ）
+  event.respondWith(networkFirstApp(event.request));
 });
 
-// キャッシュ優先（動画用）
-async function cacheFirstVideo(request) {
-  const cache = await caches.open(VIDEO_CACHE);
-  const cached = await cache.match(request);
-  if (cached) {
-    console.log('[SW] Video from cache:', request.url);
-    return cached;
-  }
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      // 動画のみキャッシュ（容量節約のためRangeレスポンスは除く）
-      const responseToCache = response.clone();
-      if (response.status === 200) {
-        cache.put(request, responseToCache);
-        console.log('[SW] Video cached:', request.url);
-      }
-    }
-    return response;
-  } catch (err) {
-    console.log('[SW] Video fetch failed:', err);
-    return new Response('Offline - video not cached', { status: 503 });
-  }
-}
-
-// キャッシュ優先（アプリ本体用）
-async function cacheFirstApp(request) {
+// ネット優先（アプリ本体用）→ 常に最新版を使用
+async function networkFirstApp(request) {
   const cache = await caches.open(APP_CACHE);
-  const cached = await cache.match(request);
-  if (cached) return cached;
   try {
     const response = await fetch(request);
     if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
-    // オフライン時はindex.htmlにフォールバック
-    const fallback = await cache.match('/index.html');
-    return fallback || new Response('Offline', { status: 503 });
+    const cached = await cache.match(request);
+    return cached || cache.match('/index.html') || new Response('Offline', { status: 503 });
   }
 }
 
-// ネットのみ（API用）
+// キャッシュ優先（MP4動画用）
+async function cacheFirstVideo(request) {
+  const cache = await caches.open(VIDEO_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.status === 200) cache.put(request, response.clone());
+    return response;
+  } catch {
+    return new Response('Video not cached', { status: 503 });
+  }
+}
+
+// ネットのみ
 async function networkOnly(request) {
   try {
     return await fetch(request);
@@ -108,12 +80,10 @@ async function networkOnly(request) {
   }
 }
 
-// ========== バックグラウンド動画プリキャッシュ ==========
-// メインアプリから動画URLリストを受け取って事前ダウンロード
+// 動画プリキャッシュ
 self.addEventListener('message', event => {
   if (event.data.type === 'PRECACHE_VIDEOS') {
     const urls = event.data.urls || [];
-    console.log('[SW] Precaching', urls.length, 'videos...');
     precacheVideos(urls).then(() => {
       event.source.postMessage({ type: 'PRECACHE_DONE', count: urls.length });
     });
@@ -127,10 +97,7 @@ async function precacheVideos(urls) {
     if (!existing) {
       try {
         const response = await fetch(url);
-        if (response.ok && response.status === 200) {
-          await cache.put(url, response);
-          console.log('[SW] Precached:', url);
-        }
+        if (response.ok && response.status === 200) await cache.put(url, response);
       } catch (err) {
         console.log('[SW] Precache failed:', url, err);
       }

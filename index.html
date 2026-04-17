@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>患者説明動画 | SKCS</title>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" id="manifestLink" href="/manifest.json">
+  <script>
+    (function(){
+      const hp = new URLSearchParams(location.search).get('hospital');
+      if (hp) {
+        document.querySelector('#manifestLink').href = '/api/manifest?hospital=' + encodeURIComponent(hp);
+      }
+    })();
+  </script>
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">

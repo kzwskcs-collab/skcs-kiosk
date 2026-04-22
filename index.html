@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>患者説明動画 | SKCS</title>
 <link rel="manifest" href="/manifest.json">
-  <!-- Plan A (2026-04-22): 動的manifest script削除。Scalefusion KIOSK PWAモードで
-       縦向き起動タブレットが回転時にリロード→PIN画面復帰する事象への対策。
-       静的 /manifest.json で全施設共通化。施設情報はScalefusion Allowed Website
-       のURL(?hospital=XX)で保持されるため、機能影響なし。 -->
+  <!-- Plan A (2026-04-22): 動的manifest script削除 -->
+  <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -180,10 +178,14 @@ function pi(d){if(pv.length>=4)return;pv+=d;upd();if(pv.length===4)setTimeout(cp
 function pd2(){pv=pv.slice(0,-1);upd();}
 function pc(){pv='';upd();document.getElementById('pe').textContent='';}
 function upd(){const ds=document.getElementById('pd').children;for(let i=0;i<4;i++)ds[i].classList.toggle('on',i<pv.length);}
-function cp(){if(pv===PIN){document.getElementById('pin').classList.add('off');}else{document.getElementById('pe').textContent='PINコードが正しくありません';pv='';upd();}}
+function cp(){if(pv===PIN){document.getElementById('pin').classList.add('off');try{sessionStorage.setItem('kiosk_unlocked','1');}catch(e){}}else{document.getElementById('pe').textContent='PINコードが正しくありません';pv='';upd();}}
 
 // Init
 document.addEventListener('DOMContentLoaded',async()=>{
+  // Plan C: PIN解除状態を復元（sessionStorage）
+  // リロード発生時もPIN画面に戻らないようにする
+  // sessionStorageはタブを閉じる・端末再起動でクリアされるのでセキュリティ担保
+  try{if(sessionStorage.getItem('kiosk_unlocked')==='1'){document.getElementById('pin').classList.add('off');}}catch(e){}
   updot();window.addEventListener('online',updot);window.addEventListener('offline',updot);
   const c=lc();if(c&&c.length){videos=c;render();}
   if(navigator.onLine){await sync(true);}else{hide();if(!c||!c.length)toast('オフライン：更新ボタンを押してください');}

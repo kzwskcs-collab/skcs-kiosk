@@ -7,6 +7,7 @@
 <link rel="manifest" href="/manifest.json">
   <!-- Plan A (2026-04-22): 動的manifest script削除 -->
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
+  <!-- Plan D (2026-04-24): visibilitychange でホーム復帰時に再ロック -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -180,11 +181,21 @@ function pc(){pv='';upd();document.getElementById('pe').textContent='';}
 function upd(){const ds=document.getElementById('pd').children;for(let i=0;i<4;i++)ds[i].classList.toggle('on',i<pv.length);}
 function cp(){if(pv===PIN){document.getElementById('pin').classList.add('off');try{sessionStorage.setItem('kiosk_unlocked','1');}catch(e){}}else{document.getElementById('pe').textContent='PINコードが正しくありません';pv='';upd();}}
 
+// Plan D (2026-04-24): ホーム画面に戻ったら（visibilityが hidden）PIN解除状態をクリア
+// 回転時はvisibilitychangeが発火しないのでPIN状態は維持される
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    try{sessionStorage.removeItem('kiosk_unlocked');}catch(e){}
+    document.getElementById('pin').classList.remove('off');
+    pv='';upd();
+  }
+});
+
 // Init
 document.addEventListener('DOMContentLoaded',async()=>{
-  // Plan C: PIN解除状態を復元（sessionStorage）
-  // リロード発生時もPIN画面に戻らないようにする
-  // sessionStorageはタブを閉じる・端末再起動でクリアされるのでセキュリティ担保
+  // Plan C (2026-04-23): PIN解除状態を復元（sessionStorage）
+  // 回転等でリロード発生時もPIN画面に戻らないよう対策
+  // sessionStorageはタブ終了・端末再起動・visibilitychange(hidden)でクリアされるのでセキュリティ担保
   try{if(sessionStorage.getItem('kiosk_unlocked')==='1'){document.getElementById('pin').classList.add('off');}}catch(e){}
   updot();window.addEventListener('online',updot);window.addEventListener('offline',updot);
   const c=lc();if(c&&c.length){videos=c;render();}

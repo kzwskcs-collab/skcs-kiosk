@@ -4,7 +4,7 @@
   "description": "SK Clinical Support System - 患者説明動画KIOSK",
   "start_url": "/index.html",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#0d3d6b",
   "theme_color": "#1a5fa8",
   "lang": "ja",

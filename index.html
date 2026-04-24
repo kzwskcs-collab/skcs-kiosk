@@ -12,6 +12,7 @@
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
   <!-- Plan D (2026-04-24): visibilitychange でホーム復帰時に再ロック -->
   <!-- Plan E (2026-04-24): 回転時 visibilitychange 誤発火対策 + 横向き対応 -->
+  <!-- Plan F (2026-04-24): CSS rotation hack - Scalefusion Activity portrait lock を強制回転で突破 -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -28,6 +29,32 @@
 :root{--bg:#f0f4f8;--surface:#fff;--accent:#1a5fa8;--accent-light:#d6e8f7;--accent-dark:#0d3d6b;--text:#1a2636;--muted:#5a7a99;--border:#c8d8e8;--green:#2e8b57;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;background:var(--bg);font-family:'Noto Sans JP',sans-serif;color:var(--text);overflow:hidden;}
+
+/* Plan F: CSS rotation hack
+   Activity portrait lock の状態で物理的に landscape になった場合、
+   body を transform で 90/-90 度回転させて視覚的に横向きレイアウトにする。
+   html.rot-r = 物理 landscape-right（デバイスを時計回りに90度）→ body を 90度回転
+   html.rot-l = 物理 landscape-left（デバイスを反時計回りに90度）→ body を -90度回転
+*/
+html.rot-r, html.rot-l{overflow:hidden;}
+html.rot-r body{
+  transform:rotate(90deg);
+  transform-origin:center center;
+  width:100vh;
+  height:100vw;
+  position:absolute;
+  top:calc((100vh - 100vw) / 2);
+  left:calc((100vw - 100vh) / 2);
+}
+html.rot-l body{
+  transform:rotate(-90deg);
+  transform-origin:center center;
+  width:100vh;
+  height:100vw;
+  position:absolute;
+  top:calc((100vh - 100vw) / 2);
+  left:calc((100vw - 100vh) / 2);
+}
 /* PIN */
 #pin{position:fixed;inset:0;z-index:999;background:var(--accent-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;}
 #pin.off{display:none;}
@@ -242,6 +269,88 @@ window.addEventListener('orientationchange',()=>{
     document.body.style.display='';
   },100);
 });
+
+// Plan F (2026-04-24): CSS rotation hack
+//   Scalefusion Browser の Activity が portrait lock されていて
+//   manifest orientation:any が効かない環境向け。
+//   deviceorientation API でデバイスの物理的な向きを検出し、
+//   viewport が portrait なのに物理的には landscape の場合、
+//   body を CSS transform で回転させて視覚的に横向きレイアウトにする。
+(function(){
+  let physical='portrait'; // 'portrait' | 'landscape-right' | 'landscape-left'
+  let lastApplied=''; // 'rot-r' | 'rot-l' | ''
+  let lastEventTime=0;
+  const THROTTLE_MS=200; // deviceorientation を間引く
+
+  function viewportIsPortrait(){
+    return window.innerHeight >= window.innerWidth;
+  }
+
+  function applyRotation(){
+    const root=document.documentElement;
+    const vpPortrait=viewportIsPortrait();
+    let desired='';
+    // ビューポートが portrait（Activityがportraitに固定されている）で
+    // 物理デバイスが landscape なら強制回転
+    if(vpPortrait){
+      if(physical==='landscape-right')desired='rot-r';
+      else if(physical==='landscape-left')desired='rot-l';
+    }
+    if(desired===lastApplied)return;
+    root.classList.remove('rot-r','rot-l');
+    if(desired)root.classList.add(desired);
+    lastApplied=desired;
+  }
+
+  function handleDeviceOrientation(e){
+    const now=Date.now();
+    if(now-lastEventTime<THROTTLE_MS)return;
+    lastEventTime=now;
+    const gamma=e.gamma; // 左右の傾き (-90 ～ 90)
+    const beta=e.beta;   // 前後の傾き (-180 ～ 180)
+    if(gamma==null||beta==null)return;
+    // 物理的な向きの判定（余裕を持たせる）
+    // gamma の絶対値が45度以上 かつ beta の絶対値が60度未満 → landscape
+    // gamma の絶対値が30度未満 → portrait
+    // それ以外（遷移中・平置き） → 前の状態を維持
+    let newPhysical=physical;
+    if(Math.abs(gamma)>=45 && Math.abs(beta)<60){
+      newPhysical = gamma>0 ? 'landscape-right' : 'landscape-left';
+    }else if(Math.abs(gamma)<30 && Math.abs(beta)>=30){
+      newPhysical='portrait';
+    }
+    if(newPhysical!==physical){
+      physical=newPhysical;
+      applyRotation();
+    }
+  }
+
+  // ビューポートサイズ変化時も再評価
+  window.addEventListener('resize',applyRotation);
+  window.addEventListener('orientationchange',()=>setTimeout(applyRotation,200));
+
+  // DeviceOrientationEvent のサポート確認＆リスナー登録
+  if(typeof DeviceOrientationEvent !== 'undefined'){
+    // iOS 13+ は permission 必要（Scalefusion Android では不要）
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      // iOS の場合は最初のタップで permission 要求（PINボタン含む）
+      const requestPerm=()=>{
+        DeviceOrientationEvent.requestPermission().then(state=>{
+          if(state==='granted'){
+            window.addEventListener('deviceorientation',handleDeviceOrientation);
+          }
+        }).catch(()=>{});
+        document.removeEventListener('click',requestPerm);
+        document.removeEventListener('touchstart',requestPerm);
+      };
+      document.addEventListener('click',requestPerm,{once:true});
+      document.addEventListener('touchstart',requestPerm,{once:true});
+    }else{
+      // Android Chrome / Scalefusion Browser はそのままリスナー登録
+      window.addEventListener('deviceorientation',handleDeviceOrientation);
+    }
+  }
+})();
 
 // Init
 document.addEventListener('DOMContentLoaded',async()=>{

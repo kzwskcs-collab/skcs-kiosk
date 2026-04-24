@@ -2,12 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="screen-orientation" content="any">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>患者説明動画 | SKCS</title>
 <link rel="manifest" href="/manifest.json">
   <!-- Plan A (2026-04-22): 動的manifest script削除 -->
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
   <!-- Plan D (2026-04-24): visibilitychange でホーム復帰時に再ロック -->
+  <!-- Plan E (2026-04-24): 回転時 visibilitychange 誤発火対策 + 横向き対応 -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -25,7 +29,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{width:100%;height:100%;background:var(--bg);font-family:'Noto Sans JP',sans-serif;color:var(--text);overflow:hidden;}
 /* PIN */
-#pin{position:fixed;inset:0;z-index:999;background:var(--accent-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+#pin{position:fixed;inset:0;z-index:999;background:var(--accent-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;}
 #pin.off{display:none;}
 .pt{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:600;color:#fff;}
 .ps{font-size:13px;color:rgba(255,255,255,.6);}
@@ -36,6 +40,27 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:'Noto Sans JP'
 .pg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px;}
 .pb{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:15px;color:#fff;font-size:20px;font-weight:500;cursor:pointer;text-align:center;font-family:'Noto Sans JP',sans-serif;}
 .pb:active{background:rgba(255,255,255,.3);}
+/* Plan E: 横向き時にPIN画面が画面からはみ出さないよう最適化 */
+@media (orientation: landscape) and (max-height: 600px){
+  #pin{gap:10px;}
+  .pt{font-size:18px;}
+  .ps{font-size:11px;}
+  .pd{gap:8px;}
+  .pd span{width:10px;height:10px;}
+  .pe{font-size:10px;height:12px;}
+  .pg{width:200px;gap:6px;}
+  .pb{padding:8px;font-size:16px;border-radius:10px;}
+}
+@media (orientation: landscape) and (max-height: 450px){
+  #pin{gap:6px;padding:8px;}
+  .pt{font-size:15px;}
+  .ps{font-size:10px;}
+  .pd{gap:6px;}
+  .pd span{width:8px;height:8px;}
+  .pe{font-size:9px;height:10px;}
+  .pg{width:180px;gap:5px;}
+  .pb{padding:5px;font-size:14px;border-radius:8px;}
+}
 /* MAIN */
 #main{position:fixed;inset:0;display:flex;flex-direction:column;}
 /* Header */
@@ -182,13 +207,40 @@ function upd(){const ds=document.getElementById('pd').children;for(let i=0;i<4;i
 function cp(){if(pv===PIN){document.getElementById('pin').classList.add('off');try{sessionStorage.setItem('kiosk_unlocked','1');}catch(e){}}else{document.getElementById('pe').textContent='PINコードが正しくありません';pv='';upd();}}
 
 // Plan D (2026-04-24): ホーム画面に戻ったら（visibilityが hidden）PIN解除状態をクリア
-// 回転時はvisibilitychangeが発火しないのでPIN状態は維持される
+// Plan E (2026-04-24): 回転時の一瞬のhidden状態でPIN再ロックが発動しないよう遅延を入れる
+//   Androidでは回転でActivity再生成→一瞬 document.hidden=true になるケースがある
+//   3秒以上 hidden が継続した場合のみPIN再ロック（ホーム画面遷移・画面OFFのケース）
+let _hiddenTimer=null;
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
-    try{sessionStorage.removeItem('kiosk_unlocked');}catch(e){}
-    document.getElementById('pin').classList.remove('off');
-    pv='';upd();
+    if(_hiddenTimer)clearTimeout(_hiddenTimer);
+    _hiddenTimer=setTimeout(()=>{
+      try{sessionStorage.removeItem('kiosk_unlocked');}catch(e){}
+      document.getElementById('pin').classList.remove('off');
+      pv='';upd();
+      _hiddenTimer=null;
+    },3000);
+  }else{
+    // 3秒以内に戻ってきた場合はタイマーをキャンセル（回転・一時的な切替）
+    if(_hiddenTimer){clearTimeout(_hiddenTimer);_hiddenTimer=null;}
   }
+});
+
+// Plan E: 防御的 orientation lock 解除。過去セッションや WebAPK が lock していた場合の保険
+try{
+  if(screen.orientation&&typeof screen.orientation.unlock==='function'){
+    screen.orientation.unlock();
+  }
+}catch(e){}
+
+// Plan E: 回転時にレイアウト再計算を促す（一部 WebView で必要）
+window.addEventListener('orientationchange',()=>{
+  // 回転完了後に明示的にリフロー
+  setTimeout(()=>{
+    document.body.style.display='none';
+    void document.body.offsetHeight;
+    document.body.style.display='';
+  },100);
 });
 
 // Init

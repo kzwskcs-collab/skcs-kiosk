@@ -7,7 +7,8 @@
 <link rel="manifest" href="/manifest.json">
   <!-- Plan A (2026-04-22): 動的manifest script削除 -->
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
-  <!-- Plan G' (2026-04-25): bulkDlで必ず再fetchするよう改修+診断ログ -->
+  <!-- Plan G' (2026-04-25): bulkDlで必ずcache.delete→fetch+診断ログ -->
+  <!-- Plan H (2026-04-25): SWキャッシュをv2にbump (kiosk-videos-v2)、旧キャッシュを強制削除 -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -284,9 +285,8 @@ function back(){
   videos.forEach(v=>chk(v.id,v.videoUrl));
 }
 
-// Plan G' (2026-04-25): bulkDl は必ず cache.delete してから再fetch + cache.put
-// Scalefusion の Clear App Cache では SW Cache Storage がクリアされず、
-// 古い不完全エントリが残って cache.match に引っかかる問題への対応。
+// Plan G' + H (2026-04-25): cache.delete してから fetch + cache.put
+// Plan H: キャッシュ名 kiosk-videos-v2（旧 v1 から bump）。SW も同期更新済み
 async function bulkDl(){
   if(dlg||!navigator.onLine){toast('Wi-Fi接続中に実行してください');return;}
   const vs=videos.filter(v=>v.videoUrl);
@@ -298,14 +298,13 @@ async function bulkDl(){
 
   console.log('[bulkDl] start. videos:',vs.length);
   let done=0,failed=0;
-  const cache=await caches.open('kiosk-videos-v1');
+  const cache=await caches.open('kiosk-videos-v2');
   for(const v of vs){
     txt.textContent=v.title+'（'+(done+1)+'/'+vs.length+'）';
     bar.style.width=(done/vs.length*100)+'%';
     const cb=document.getElementById('cb-'+v.id);
     if(cb){cb.className='cbadge playing';cb.textContent='保存中…';}
     try{
-      // 古い不完全エントリを必ず削除してから再fetch
       await cache.delete(v.videoUrl);
       const response=await fetch(v.videoUrl);
       if(!response.ok||response.status!==200)throw new Error('HTTP '+response.status);
@@ -321,7 +320,6 @@ async function bulkDl(){
     done++;
   }
 
-  // 検証：キャッシュ内容をログ出力（diagnostic）
   const keys=await cache.keys();
   console.log('[bulkDl] DONE. cache contents:',keys.length,'entries');
   keys.forEach(k=>console.log('  -',k.url));
@@ -337,8 +335,8 @@ async function bulkDl(){
 
 async function chk(id,url){
   if(!url||!('caches' in window))return;
-  // Plan G (2026-04-25): SW のキャッシュ名と統一（kiosk-v1 → kiosk-videos-v1）
-  const c=await caches.open('kiosk-videos-v1');const m=await c.match(url);
+  // Plan H (2026-04-25): SW のキャッシュ名と統一（kiosk-videos-v2）
+  const c=await caches.open('kiosk-videos-v2');const m=await c.match(url);
   const cb=document.getElementById('cb-'+id);
   if(m&&cb){cb.className='cbadge saved';cb.textContent='保存済';}
 }

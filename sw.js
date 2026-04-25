@@ -1,6 +1,8 @@
-// Service Worker for SKCS KIOSK v2
-const APP_CACHE = 'kiosk-app-v2';
-const VIDEO_CACHE = 'kiosk-videos-v1';
+// Service Worker for SKCS KIOSK v3
+// Plan G' (2026-04-25): VIDEO_CACHE を v1→v2 に bump、APP_CACHE を v2→v3 に bump
+// 旧キャッシュ（kiosk-app-v2, kiosk-videos-v1）は activate 時に自動削除される
+const APP_CACHE = 'kiosk-app-v3';
+const VIDEO_CACHE = 'kiosk-videos-v2';
 
 const APP_ASSETS = ['/', '/index.html', '/manifest.json'];
 

@@ -7,6 +7,7 @@
 <link rel="manifest" href="/manifest.json">
   <!-- Plan A (2026-04-22): 動的manifest script削除 -->
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
+  <!-- Plan G (2026-04-25): bulkDlがServiceWorkerキャッシュに本当に保存するよう修正 -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -182,9 +183,7 @@ function cp(){if(pv===PIN){document.getElementById('pin').classList.add('off');t
 
 // Init
 document.addEventListener('DOMContentLoaded',async()=>{
-  // Plan C: PIN解除状態を復元（sessionStorage）
-  // リロード発生時もPIN画面に戻らないようにする
-  // sessionStorageはタブを閉じる・端末再起動でクリアされるのでセキュリティ担保
+  // Plan C (2026-04-23): PIN解除状態を復元（sessionStorage）
   try{if(sessionStorage.getItem('kiosk_unlocked')==='1'){document.getElementById('pin').classList.add('off');}}catch(e){}
   updot();window.addEventListener('online',updot);window.addEventListener('offline',updot);
   const c=lc();if(c&&c.length){videos=c;render();}
@@ -285,38 +284,55 @@ function back(){
   videos.forEach(v=>chk(v.id,v.videoUrl));
 }
 
+// Plan G (2026-04-25): bulkDl が ServiceWorker キャッシュ(kiosk-videos-v1)に
+// 実際の動画データを fetch + cache.put で保存するように改修。
+// 旧来の <video> 要素経由はブラウザHTTPキャッシュであり、Service Workerが
+// オフライン時に提供できる kiosk-videos-v1 キャッシュには入っていなかった。
 async function bulkDl(){
   if(dlg||!navigator.onLine){toast('Wi-Fi接続中に実行してください');return;}
   const vs=videos.filter(v=>v.videoUrl);
   if(!vs.length){toast('保存できる動画がありません');return;}
+  if(!('caches' in window)){toast('このブラウザは保存機能に対応していません');return;}
   dlg=true;
   const btn=document.getElementById('dlBtn'),prog=document.getElementById('dlp'),bar=document.getElementById('dlb'),txt=document.getElementById('dlptxt');
   btn.style.opacity='.6';prog.classList.add('show');
-  const hv=document.createElement('video');hv.muted=true;hv.preload='auto';
-  hv.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
-  document.body.appendChild(hv);
-  let done=0;
+
+  let done=0,failed=0;
+  const cache=await caches.open('kiosk-videos-v1');
   for(const v of vs){
     txt.textContent=v.title+'（'+(done+1)+'/'+vs.length+'）';
     bar.style.width=(done/vs.length*100)+'%';
     const cb=document.getElementById('cb-'+v.id);
     if(cb){cb.className='cbadge playing';cb.textContent='保存中…';}
-    await new Promise(res=>{
-      hv.src=v.videoUrl;let ok=false;
-      const fin=()=>{if(!ok){ok=true;if(cb){cb.className='cbadge saved';cb.textContent='保存済';}res();}};
-      hv.oncanplaythrough=fin;setTimeout(fin,30000);hv.load();
-    });
+    try{
+      const existing=await cache.match(v.videoUrl);
+      if(!existing){
+        const response=await fetch(v.videoUrl);
+        if(!response.ok||response.status!==200)throw new Error('HTTP '+response.status);
+        await cache.put(v.videoUrl,response);
+      }
+      if(cb){cb.className='cbadge saved';cb.textContent='保存済';}
+    }catch(err){
+      console.error('[bulkDl]',v.title,err);
+      if(cb){cb.className='cbadge';cb.textContent='保存失敗';}
+      failed++;
+    }
     done++;
   }
-  hv.remove();bar.style.width='100%';txt.textContent='✅ '+done+'件すべて保存完了！';
-  btn.style.opacity='1';document.getElementById('dlTxt').textContent='保存済み ✅';
+
+  bar.style.width='100%';
+  if(failed>0){txt.textContent='⚠️ '+(done-failed)+'件保存、'+failed+'件失敗';}
+  else{txt.textContent='✅ '+done+'件すべて保存完了！';}
+  btn.style.opacity='1';
+  document.getElementById('dlTxt').textContent=failed>0?'部分保存':'保存済み ✅';
   setTimeout(()=>{prog.classList.remove('show');dlg=false;},3000);
-  toast(done+'件の動画を保存しました');
+  toast((done-failed)+'件保存'+(failed>0?'（'+failed+'件失敗）':''));
 }
 
 async function chk(id,url){
   if(!url||!('caches' in window))return;
-  const c=await caches.open('kiosk-v1');const m=await c.match(url);
+  // Plan G (2026-04-25): SW のキャッシュ名と統一（kiosk-v1 → kiosk-videos-v1）
+  const c=await caches.open('kiosk-videos-v1');const m=await c.match(url);
   const cb=document.getElementById('cb-'+id);
   if(m&&cb){cb.className='cbadge saved';cb.textContent='保存済';}
 }

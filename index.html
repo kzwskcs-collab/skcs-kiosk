@@ -7,7 +7,7 @@
 <link rel="manifest" href="/manifest.json">
   <!-- Plan A (2026-04-22): 動的manifest script削除 -->
   <!-- Plan C (2026-04-23): PIN解除状態をsessionStorageで保持 -->
-  <!-- Plan G (2026-04-25): bulkDlがServiceWorkerキャッシュに本当に保存するよう修正 -->
+  <!-- Plan G' (2026-04-25): bulkDlで必ず再fetchするよう改修+診断ログ -->
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
@@ -284,10 +284,9 @@ function back(){
   videos.forEach(v=>chk(v.id,v.videoUrl));
 }
 
-// Plan G (2026-04-25): bulkDl が ServiceWorker キャッシュ(kiosk-videos-v1)に
-// 実際の動画データを fetch + cache.put で保存するように改修。
-// 旧来の <video> 要素経由はブラウザHTTPキャッシュであり、Service Workerが
-// オフライン時に提供できる kiosk-videos-v1 キャッシュには入っていなかった。
+// Plan G' (2026-04-25): bulkDl は必ず cache.delete してから再fetch + cache.put
+// Scalefusion の Clear App Cache では SW Cache Storage がクリアされず、
+// 古い不完全エントリが残って cache.match に引っかかる問題への対応。
 async function bulkDl(){
   if(dlg||!navigator.onLine){toast('Wi-Fi接続中に実行してください');return;}
   const vs=videos.filter(v=>v.videoUrl);
@@ -297,6 +296,7 @@ async function bulkDl(){
   const btn=document.getElementById('dlBtn'),prog=document.getElementById('dlp'),bar=document.getElementById('dlb'),txt=document.getElementById('dlptxt');
   btn.style.opacity='.6';prog.classList.add('show');
 
+  console.log('[bulkDl] start. videos:',vs.length);
   let done=0,failed=0;
   const cache=await caches.open('kiosk-videos-v1');
   for(const v of vs){
@@ -305,12 +305,13 @@ async function bulkDl(){
     const cb=document.getElementById('cb-'+v.id);
     if(cb){cb.className='cbadge playing';cb.textContent='保存中…';}
     try{
-      const existing=await cache.match(v.videoUrl);
-      if(!existing){
-        const response=await fetch(v.videoUrl);
-        if(!response.ok||response.status!==200)throw new Error('HTTP '+response.status);
-        await cache.put(v.videoUrl,response);
-      }
+      // 古い不完全エントリを必ず削除してから再fetch
+      await cache.delete(v.videoUrl);
+      const response=await fetch(v.videoUrl);
+      if(!response.ok||response.status!==200)throw new Error('HTTP '+response.status);
+      const cl=response.headers.get('content-length');
+      console.log('[bulkDl]',v.title,'size:',cl||'unknown');
+      await cache.put(v.videoUrl,response);
       if(cb){cb.className='cbadge saved';cb.textContent='保存済';}
     }catch(err){
       console.error('[bulkDl]',v.title,err);
@@ -319,6 +320,11 @@ async function bulkDl(){
     }
     done++;
   }
+
+  // 検証：キャッシュ内容をログ出力（diagnostic）
+  const keys=await cache.keys();
+  console.log('[bulkDl] DONE. cache contents:',keys.length,'entries');
+  keys.forEach(k=>console.log('  -',k.url));
 
   bar.style.width='100%';
   if(failed>0){txt.textContent='⚠️ '+(done-failed)+'件保存、'+failed+'件失敗';}
